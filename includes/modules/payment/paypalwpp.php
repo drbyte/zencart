@@ -230,7 +230,7 @@ class paypalwpp extends base {
     // module cannot be used for purchase > 1000000 JPY
     if ($order->info['total'] > 1000000 && $order->info['currency'] == 'JPY') {
       $this->enabled = false;
-      $this->zcLog('update_status', 'Module disabled because purchase price (' . $order_amount . ') exceeds PayPal-imposed maximum limit of 1000000 JPY.');
+      $this->zcLog('update_status', 'Module disabled because purchase price (' . $order->info['total'] . ') exceeds PayPal-imposed maximum limit of 1000000 JPY.');
     }
     // module cannot be used for purchase > $10,000 USD equiv
     $order_amount = $this->calc_order_amount($order->info['total'], 'USD', false);
@@ -380,7 +380,6 @@ class paypalwpp extends base {
 
 if (false) { // disabled until clarification is received about coupons in PayPal Wallet
       // report details of coupons used
-      $coupons_list = array();
       $j=0;
       global $order_totals;
       if (sizeof($order_totals)) {
@@ -570,7 +569,7 @@ if (false) { // disabled until clarification is received about coupons in PayPal
     global $db, $messageStack, $doPayPal;
     $doPayPal = $this->paypal_init();
     // look up history on this order from PayPal table
-    $sql = "select * from " . TABLE_PAYPAL . " where order_id = :orderID order by last_modified DESC, date_added DESC, parent_txn_id DESC, paypal_ipn_id " . ($last_txn) ? "DESC " : "ASC ";
+    $sql = "select * from " . TABLE_PAYPAL . " where order_id = :orderID order by last_modified DESC, date_added DESC, parent_txn_id DESC, paypal_ipn_id " . ($last_txn ? "DESC " : "ASC ");
     $sql = $db->bindVars($sql, ':orderID', $oID, 'integer');
     $zc_ppHist = $db->Execute($sql);
     if ($zc_ppHist->RecordCount() == 0) return false;
@@ -1333,7 +1332,7 @@ if (false) { // disabled until clarification is received about coupons in PayPal
       } // endif attribute-info
 
       // PayPal can't handle fractional-quantity values, so convert it to qty 1 here
-      if ($order->products[$i]['qty'] > 1 && ($order->products[$i]['qty'] != (int)$order->products[$i]['qty'] || $flag_treat_as_partial)) {
+      if (is_float($order->products[$i]['qty']) && ($order->products[$i]['qty'] != (int)$order->products[$i]['qty'] || $flag_treat_as_partial)) {
         $optionsLI["L_PAYMENTREQUEST_0_NAME$k"] = '('.$order->products[$i]['qty'].' x ) ' . $optionsLI["L_PAYMENTREQUEST_0_NAME$k"];
         // zen_add_tax already handles whether DISPLAY_PRICES_WITH_TAX is set
         $optionsLI["L_PAYMENTREQUEST_0_AMT$k"] = zen_round(zen_round(zen_add_tax($order->products[$i]['final_price'], $order->products[$i]['tax']), $decimals) * $order->products[$i]['qty'], $decimals);
