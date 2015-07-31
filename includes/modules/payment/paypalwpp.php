@@ -281,7 +281,7 @@ class paypalwpp extends base {
    */
   function process_button() {
     $_SESSION['paypal_ec_markflow'] = 1;
-    if ($this->use_incontext_checkout == false) return '';
+    if ($this->use_incontext_checkout == false || (isset($_SESSION['paypal_ec_token']) && !empty($_SESSION['paypal_ec_token'])) ) return '';
     return "      <script>
         window.paypalCheckoutReady = function () {
         paypal.checkout.setup('" . MODULE_PAYMENT_PAYPALWPP_MERCHANTID . "', {
