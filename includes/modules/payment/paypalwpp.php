@@ -285,8 +285,8 @@ class paypalwpp extends base {
     return "      <script>
         window.paypalCheckoutReady = function () {
         paypal.checkout.setup('" . MODULE_PAYMENT_PAYPALWPP_MERCHANTID . "', {
-          //locale: '" . $this->getLanguageCode('incontext') . "',
-          environment: 'sandbox',
+          //locale: '" . $this->getLanguageCode('incontext') . "',"
+          . (MODULE_PAYMENT_PAYPALWPP_SERVER == 'live' ? '' : "\n          environment: 'sandbox',") . "
           container: 'checkout_confirmation',
           button: 'btn_submit'
         });
