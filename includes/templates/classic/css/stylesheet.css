@@ -830,3 +830,7 @@ ul.pagination {
 .item-list ul.pager li:first-child a .inactive,
 .item-list ul.pager li:last-child a .inactive {
   color: #b4b4b3; }
+
+.paypal-button-hidden {
+  visibility: hidden;
+}
