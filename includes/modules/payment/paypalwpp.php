@@ -280,8 +280,18 @@ class paypalwpp extends base {
    * Prepare the hidden fields comprising the parameters for the Submit button on the checkout confirmation page
    */
   function process_button() {
+    // When hitting the checkout-confirm button, we are going into markflow mode
     $_SESSION['paypal_ec_markflow'] = 1;
-    if ($this->use_incontext_checkout == false || (isset($_SESSION['paypal_ec_token']) && !empty($_SESSION['paypal_ec_token'])) ) return '';
+
+    // if we have a token, we want to avoid incontext checkout, so we return no special markup
+    if (isset($_SESSION['paypal_ec_token']) && !empty($_SESSION['paypal_ec_token'])) {
+      return '';
+    }
+
+    // if incontext checkout is not enabled (ie: not configured), we return no special incontext markup
+    if ($this->use_incontext_checkout == false) return '';
+
+    // send the PayPal-provided javascript to trigger the incontext checkout experience
     return "      <script>
         window.paypalCheckoutReady = function () {
         paypal.checkout.setup('" . MODULE_PAYMENT_PAYPALWPP_MERCHANTID . "', {
