@@ -1769,7 +1769,7 @@ if (false) { // disabled until clarification is received about coupons in PayPal
     if ($_SESSION['paypal_ec_markflow'] == 1) $orderReview = false;
     $userActionKey = "&useraction=" . ((int)$orderReview == false ? 'commit' : 'continue');
 
-    $this->ec_redirect_url = $paypal_url . "?cmd=_express-checkout&token=" . $_SESSION['paypal_ec_token'] . $userActionKey;
+    $this->ec_redirect_url = $paypal_url . "?" . ($this->use_incontext_checkout ? '' : 'cmd=_express-checkout&') . "token=" . $_SESSION['paypal_ec_token'] . $userActionKey;
     // This is where we actually redirect the customer's browser to PayPal. Upon return from PayPal, they go to ec_step2
     header("HTTP/1.1 302 Object Moved");
     zen_redirect($this->ec_redirect_url);
