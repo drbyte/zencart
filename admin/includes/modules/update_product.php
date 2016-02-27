@@ -81,6 +81,7 @@
       ///////////////////////////////////////////////////////
       //// INSERT PRODUCT-TYPE-SPECIFIC *INSERTS* HERE //////
 
+      $zco_notifier->notify('NOTIFY_ADMIN_PRODUCT_UPDATE_INSERT_EXTRAS', $product_type);
 
       ////    *END OF PRODUCT-TYPE-SPECIFIC INSERTS* ////////
       ///////////////////////////////////////////////////////
@@ -100,6 +101,7 @@
       ///////////////////////////////////////////////////////
       //// INSERT PRODUCT-TYPE-SPECIFIC *UPDATES* HERE //////
 
+      $zco_notifier->notify('NOTIFY_ADMIN_PRODUCT_UPDATE_EXTRAS', $product_type);
 
       ////    *END OF PRODUCT-TYPE-SPECIFIC UPDATES* ////////
       ///////////////////////////////////////////////////////
@@ -191,6 +193,8 @@
         exec(DIR_IMAGEMAGICK . "mogrify -geometry " . $small_width . " " . $filename_small);
       }
     }
+    
+    $zco_notifier->notify('NOTIFY_ADMIN_PRODUCT_UPDATE_END', $products_id, $product_type);
 
     zen_redirect(zen_href_link(FILENAME_CATEGORIES, 'cPath=' . $cPath . '&pID=' . $products_id . (isset($_GET['page']) ? '&page=' . $_GET['page'] : '') . (isset($_POST['search']) ? '&search=' . $_POST['search'] : '') ));
   } else {

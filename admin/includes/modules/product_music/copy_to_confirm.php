@@ -178,6 +178,8 @@ if ( $_POST['copy_attributes']=='copy_attributes_yes' and $_POST['copy_as'] == '
             }
 
             zen_record_admin_activity('Product ' . (int)$old_products_id . ' duplicated as product ' . (int)$dup_products_id . ' via admin console.', 'info');
+            
+            $zco_notifier->notify('NOTIFY_ADMIN_PRODUCT_COPY_TO_CONFIRM', $products_id_from, $products_id_to);
           }
 
           // reset products_price_sorter for searches etc.

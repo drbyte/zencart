@@ -32,6 +32,8 @@ if (!defined('IS_ADMIN_FLAG')) {
                           where products_id = '" . (int)$products_id . "'");
           }
 
+          $zco_notifier->notify('NOTIFY_ADMIN_PRODUCT_COPY_TO_CONFIRM', $new_parent_id, $current_category_id, $products_id);
+
           // reset products_price_sorter for searches etc.
           zen_update_products_price_sorter((int)$products_id);
           zen_record_admin_activity('Moved product ' . (int)$products_id . ' from category ' . (int)$current_category_id . ' to category ' . (int)$new_parent_id, 'notice');

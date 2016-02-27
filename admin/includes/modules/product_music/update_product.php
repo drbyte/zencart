@@ -98,6 +98,8 @@
 
       zen_db_perform(TABLE_PRODUCT_MUSIC_EXTRA, $sql_data_array);
 
+      $zco_notifier->notify('NOTIFY_ADMIN_PRODUCT_UPDATE_INSERT_EXTRAS', $product_type);
+
       ////    *END OF PRODUCT-TYPE-SPECIFIC INSERTS* ////////
       ///////////////////////////////////////////////////////
     } elseif ($action == 'update_product') {
@@ -126,6 +128,8 @@
                               'music_genre_id' => (int)$music_genre_id );
 
       zen_db_perform(TABLE_PRODUCT_MUSIC_EXTRA, $sql_data_array, 'update', "products_id = '" . (int)$products_id . "'");
+
+      $zco_notifier->notify('NOTIFY_ADMIN_PRODUCT_UPDATE_EXTRAS', $product_type);
 
       ////    *END OF PRODUCT-TYPE-SPECIFIC UPDATES* ////////
       ///////////////////////////////////////////////////////
@@ -217,6 +221,8 @@
         exec(DIR_IMAGEMAGICK . "mogrify -geometry " . $small_width . " " . $filename_small);
       }
     }
+
+    $zco_notifier->notify('NOTIFY_ADMIN_PRODUCT_UPDATE_END', $products_id);
 
     zen_redirect(zen_href_link(FILENAME_CATEGORIES, 'cPath=' . $cPath . '&pID=' . $products_id . (isset($_GET['page']) ? '&page=' . $_GET['page'] : '') . (isset($_POST['search']) ? '&search=' . $_POST['search'] : '') ));
   } else {

@@ -1432,6 +1432,8 @@ while (!$chk_sale_categories_all->EOF) {
                   where category_id = '" . (int)$category_id . "'");
 
     zen_record_admin_activity('Deleted category ' . (int)$category_id . ' from database via admin console.', 'warning');
+
+    $zco_notifier->notify('NOTIFIER_ADMIN_AFTER_ZEN_REMOVE_CATEGORY', array(), (int)$category_id);
   }
 
   function zen_remove_product($product_id, $ptc = 'true') {
@@ -1519,6 +1521,8 @@ while (!$chk_sale_categories_all->EOF) {
                   where products_id = '" . (int)$product_id . "'");
 
     zen_record_admin_activity('Deleted product ' . (int)$product_id . ' from database via admin console.', 'warning');
+
+    $zco_notifier->notify('NOTIFIER_ADMIN_AFTER_ZEN_REMOVE_PRODUCT', array(), (int)$product_id, $ptc);
   }
 
   function zen_products_attributes_download_delete($product_id) {

@@ -81,6 +81,8 @@ if (!defined('IS_ADMIN_FLAG')) {
       $cInfo = new objectInfo(array());
     }
 
+    $zco_notifier->notify('NOTIFY_ADMIN_COLLECT_INFO', 'product_free_shipping', $pInfo, $cInfo);
+
     $manufacturers_array = array(array('id' => '', 'text' => TEXT_NONE));
     $manufacturers = $db->Execute("select manufacturers_id, manufacturers_name
                                    from " . TABLE_MANUFACTURERS . " order by manufacturers_name");
@@ -490,6 +492,9 @@ updateGross();
             <td class="main"><?php echo TEXT_PRODUCTS_SORT_ORDER; ?></td>
             <td class="main"><?php echo zen_draw_separator('pixel_trans.gif', '24', '15') . '&nbsp;' . zen_draw_input_field('products_sort_order', $pInfo->products_sort_order); ?></td>
           </tr>
+<?php
+  $zco_notifier->notify('NOTIFY_ADMIN_COLLECT_INFO_ADDITIONAL_FIELDS', 'product_free_shipping', $pInfo, $cInfo);
+?>
         </table></td>
       </tr>
       <tr>
