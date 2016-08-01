@@ -3,20 +3,27 @@
  * Side Box Template
  *
  * @package templateSystem
- * @copyright Copyright 2003-2014 Zen Cart Development Team
+ * @copyright Copyright 2003-2016 Zen Cart Development Team
  * @copyright Portions Copyright 2003 osCommerce
  * @license http://www.zen-cart.com/license/2_0.txt GNU Public License V2.0
- * @version $Id: tpl_categories.php 4162 2006-08-17 03:55:02Z ajeh $
+ * @version $Id: tpl_categories.php $
+ *
+ * @compatibility: NOTE: This file uses true/false booleans instead of the old approach of 'true'/'false' strings for determining flow
  */
   $content = "";
 
   $content .= '<div id="' . str_replace('_', '-', $box_id . 'Content') . '" class="sideBoxContent">' . "\n";
   for ($i=0;$i<sizeof($box_categories_array);$i++) {
-    if ((CATEGORIES_PRODUCTS_INACTIVE_HIDE == 1 && $box_categories_array[$i]['count'] == 0) || zen_get_product_types_to_category($box_categories_array[$i]['path']) == 3 or ($box_categories_array[$i]['top'] != 'true' and SHOW_CATEGORIES_SUBCATEGORIES_ALWAYS != 1)) {
-      // skip if this is for the document box (==3)
-      // skip empty or status off categories
-      continue;
-    }
+    // skip empty or status off categories
+    if (CATEGORIES_PRODUCTS_INACTIVE_HIDE == 1 && $box_categories_array[$i]['count'] == 0) continue;
+
+    // skip if this is for the document box (==3)
+    if (zen_get_product_types_to_category($box_categories_array[$i]['path']) == 3) continue;
+
+    // skip sub categories if configured to do so
+    if ($box_categories_array[$i]['top'] === false and SHOW_CATEGORIES_SUBCATEGORIES_ALWAYS != 1) continue;
+
+    // Determine CSS class to apply to the cat as we loop thru
     switch(true) {
 // to make a specific category stand out define a new class in the stylesheet example: A.category-holiday
 // uncomment the select below and set the cPath=3 to the cPath= your_categories_id
@@ -24,7 +31,7 @@
 //      case ($box_categories_array[$i]['path'] == 'cPath=3'):
 //        $new_style = 'category-holiday';
 //        break;
-      case ($box_categories_array[$i]['top'] == 'true'):
+      case ($box_categories_array[$i]['top'] === true):
         $new_style = 'category-top';
         break;
       case ($box_categories_array[$i]['has_sub_cat']):
@@ -33,8 +40,10 @@
       default:
         $new_style = 'category-products';
     }
+    // apply clickable HREF and CSS style
     $content .= '<a class="' . $new_style . '" href="' . zen_href_link(FILENAME_DEFAULT, $box_categories_array[$i]['path']) . '">';
 
+    // Wrap sub-cat span+class if relevant, to allow for styling
     if ($box_categories_array[$i]['current']) {
       if ($box_categories_array[$i]['has_sub_cat']) {
         $content .= '<span class="category-subs-parent">' . $box_categories_array[$i]['name'] . '</span>';
@@ -45,19 +54,25 @@
       $content .= $box_categories_array[$i]['name'];
     }
 
+    // insert separator string
     if ($box_categories_array[$i]['has_sub_cat']) {
       $content .= CATEGORIES_SEPARATOR;
     }
     $content .= '</a>';
 
+    // add display of counts including admin-defined prefixes and suffixes
     if (SHOW_COUNTS == 'true') {
       if ((CATEGORIES_COUNT_ZERO == '1' and $box_categories_array[$i]['count'] == 0) or $box_categories_array[$i]['count'] >= 1) {
         $content .= CATEGORIES_COUNT_PREFIX . $box_categories_array[$i]['count'] . CATEGORIES_COUNT_SUFFIX;
       }
     }
 
+    // add separator for display and newline for clean source in the HTML
     $content .= '<br />' . "\n";
   }
+
+
+  // add additional links to the bottom of the list of categories
 
   if (SHOW_CATEGORIES_BOX_SPECIALS == 'true' or SHOW_CATEGORIES_BOX_PRODUCTS_NEW == 'true' or SHOW_CATEGORIES_BOX_FEATURED_PRODUCTS == 'true' or SHOW_CATEGORIES_BOX_PRODUCTS_ALL == 'true') {
 // display a separator between categories and links
@@ -70,11 +85,10 @@
         $content .= '<a class="category-links" href="' . zen_href_link(FILENAME_SPECIALS) . '">' . CATEGORIES_BOX_HEADING_SPECIALS . '</a>' . '<br />' . "\n";
       }
     }
-    if (SHOW_CATEGORIES_BOX_PRODUCTS_NEW == 'true') {
-      // display limits
-//      $display_limit = zen_get_products_new_timelimit();
-      $display_limit = zen_get_new_date_range();
 
+    // check if we have any "NEW" products, and if so, include a link
+    if (SHOW_CATEGORIES_BOX_PRODUCTS_NEW == 'true') {
+      $display_limit = zen_get_new_date_range();
       $show_this = $db->Execute("select p.products_id
                                  from " . TABLE_PRODUCTS . " p
                                  where p.products_status = 1 " . $display_limit . " limit 1");
@@ -82,6 +96,8 @@
         $content .= '<a class="category-links" href="' . zen_href_link(FILENAME_PRODUCTS_NEW) . '">' . CATEGORIES_BOX_HEADING_WHATS_NEW . '</a>' . '<br />' . "\n";
       }
     }
+
+    // check if we have any "FEATURED" products, and if so, include a link
     if (SHOW_CATEGORIES_BOX_FEATURED_PRODUCTS == 'true') {
       $show_this = $db->Execute("select products_id from " . TABLE_FEATURED . " where status= 1 limit 1");
       if ($show_this->RecordCount() > 0) {

@@ -3,24 +3,24 @@
  * Side Box Template
  *
  * @package templateSystem
- * @copyright Copyright 2003-2005 Zen Cart Development Team
+ * @copyright Copyright 2003-2016 Zen Cart Development Team
  * @copyright Portions Copyright 2003 osCommerce
  * @license http://www.zen-cart.com/license/2_0.txt GNU Public License V2.0
- * @version $Id: tpl_document_categories.php 2975 2006-02-05 19:33:51Z birdbrain $
+ * @version $Id: tpl_document_categories.php $
  */
   $content = "";
-  
+
   $content .= '<div id="' . str_replace('_', '-', $box_id . 'Content') . '" class="sideBoxContent">';
   for ($i=0;$i<sizeof($box_categories_array);$i++) {
 /*
-    if ($box_categories_array[$i]['has_sub_cat'] or $box_categories_array[$i]['parent'] == 'true') {
+    if ($box_categories_array[$i]['has_sub_cat'] or $box_categories_array[$i]['parent'] == true) {
       $new_style = 'category-parent';
     } else {
       $new_style = 'category-child';
     }
 */
     switch(true) {
-      case ($box_categories_array[$i]['top'] == 'true'):
+      case ($box_categories_array[$i]['top'] == true):
         $new_style = 'category-top';
         break;
       case ($box_categories_array[$i]['has_sub_cat']):
@@ -56,4 +56,3 @@
       $content .= '<br />';
     }
       $content .= '</div>';
-?>
