@@ -50,7 +50,7 @@
  * @param string $email_reply_to_name  Name of the "reply-to" header (defaults to store name if not specified, except for contact-us and order-confirmation)
  * @param string $email_reply_to_address Email address for reply-to header (defaults to store email address if not specified, except for contact-us and order-confirmation)
 **/
-  function zen_mail($to_name, $to_address, $email_subject, $email_text, $from_email_name, $from_email_address, $block=array(), $module='default', $attachments_list='', $email_reply_to_name = '', $email_reply_to_address = '' ) {
+  function zen_mail($to_name, $to_address, $email_subject, $email_text, $from_email_name, $from_email_address, $block=array(), $module='default', $attachments_list='', $email_reply_to_name = '', $email_reply_to_address = '', $options = array()) {
     global $db, $messageStack, $zco_notifier;
     if (!defined('DEVELOPER_OVERRIDE_EMAIL_STATUS') || (defined('DEVELOPER_OVERRIDE_EMAIL_STATUS') && DEVELOPER_OVERRIDE_EMAIL_STATUS == 'site'))
       if (SEND_EMAILS != 'true') return false;  // if sending email is disabled in Admin, just exit
@@ -260,7 +260,19 @@
 
       $mail->AddAddress($to_email_address, $to_name);
       //$mail->AddAddress($to_email_address);    // (alternate format if no name, since name is optional)
-      //$mail->AddBCC(STORE_OWNER_EMAIL_ADDRESS, STORE_NAME);
+
+      // $options['bcc' => STORE_OWNER_EMAIL_ADDRESS] or $options['bcc' => array($name=>$email)]
+      if (!empty($options['bcc'])) {
+        $bcc = $options['bcc'];
+        if ($bcc === STORE_OWNER_EMAIL_ADDRESS) {
+          $mail->AddBCC(STORE_OWNER_EMAIL_ADDRESS, STORE_NAME);
+        } else {
+          if (!is_array($bcc)) continue;
+          foreach($bcc as $bccname=>$bccemail) {
+            $mail->AddBCC($bccemail, $bccname);
+          }
+        }
+      }
 
       if (EMAIL_USE_HTML == 'true') $email_html = processEmbeddedImages($email_html, $mail);
 
