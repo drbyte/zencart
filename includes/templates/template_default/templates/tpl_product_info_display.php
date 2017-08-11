@@ -6,12 +6,11 @@
  * Displays details of a typical product
  *
  * @package templateSystem
- * @copyright Copyright 2003-2014 Zen Cart Development Team
+ * @copyright Copyright 2003-2017 Zen Cart Development Team
  * @copyright Portions Copyright 2003 osCommerce
  * @license http://www.zen-cart.com/license/2_0.txt GNU Public License V2.0
- * @version $Id:  $
+ * @version $Id: Modified in v1.5.6 $
  */
- //require(DIR_WS_MODULES . '/debug_blocks/product_info_prices.php');
 ?>
 <div class="centerColumn" id="productGeneral">
 
@@ -219,6 +218,10 @@ if (CUSTOMERS_APPROVAL == 3 and TEXT_LOGIN_FOR_PRICE_BUTTON_REPLACE_SHOWROOM == 
   }
 ?>
 <!--eof Product URL -->
+
+<!--bof related products module-->
+<?php require($template->get_template_dir('tpl_modules_related_products.php', DIR_WS_TEMPLATE, $current_page_base,'templates'). '/' . 'tpl_modules_related_products.php');?>
+<!--eof related products module-->
 
 <!--bof also purchased products module-->
 <?php require($template->get_template_dir('tpl_modules_also_purchased_products.php', DIR_WS_TEMPLATE, $current_page_base,'templates'). '/' . 'tpl_modules_also_purchased_products.php');?>
