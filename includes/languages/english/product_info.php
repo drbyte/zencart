@@ -45,4 +45,7 @@ define('ATTRIBUTES_PRICE_DELIMITER_SUFFIX', ' )');
 define('ATTRIBUTES_WEIGHT_DELIMITER_PREFIX', ' (');
 define('ATTRIBUTES_WEIGHT_DELIMITER_SUFFIX', ') ');
 
-?>
+// XSELL Un-Comment the option you want to use
+define('TEXT_XSELL_PRODUCTS', 'Related Products');
+//define('TEXT_XSELL_PRODUCTS', 'We Also Recommend');
+//define('TEXT_XSELL_PRODUCTS', 'You may also like');

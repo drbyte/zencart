@@ -35,6 +35,7 @@ if (!defined('IS_ADMIN_FLAG')) {
                        'products_qty_box_status' => PRODUCTS_QTY_BOX_STATUS,
                        'products_quantity_order_max' => '0',
                        'products_sort_order' => '0',
+                       'products_xsell_sort_order' => '0',
                        'products_discount_type' => '0',
                        'products_discount_type_from' => '0',
                        'products_price_sorter' => '0',
@@ -54,7 +55,7 @@ if (!defined('IS_ADMIN_FLAG')) {
                                       p.products_quantity_order_min, p.products_quantity_order_units, p.products_priced_by_attribute,
                                       p.product_is_free, p.product_is_call, p.products_quantity_mixed,
                                       p.product_is_always_free_shipping, p.products_qty_box_status, p.products_quantity_order_max,
-                                      p.products_sort_order,
+                                      p.products_sort_order, products_xsell_sort_order, 
                                       p.products_discount_type, p.products_discount_type_from,
                                       p.products_price_sorter, p.master_categories_id
                               from " . TABLE_PRODUCTS . " p, " . TABLE_PRODUCTS_DESCRIPTION . " pd
@@ -489,6 +490,10 @@ updateGross();
           <tr>
             <td class="main"><?php echo TEXT_PRODUCTS_SORT_ORDER; ?></td>
             <td class="main"><?php echo zen_draw_separator('pixel_trans.gif', '24', '15') . '&nbsp;' . zen_draw_input_field('products_sort_order', $pInfo->products_sort_order); ?></td>
+          </tr>
+          <tr>
+            <td class="main"><?php echo TEXT_PRODUCTS_XSELL_SORT_ORDER; ?></td>
+            <td class="main"><?php echo zen_draw_separator('pixel_trans.gif', '24', '15') . '&nbsp;' . zen_draw_input_field('products_xsell_sort_order', $pInfo->products_xsell_sort_order); ?></td>
           </tr>
         </table></td>
       </tr>

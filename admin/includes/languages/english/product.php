@@ -183,3 +183,5 @@ define('TEXT_COPY_AS_DUPLICATE', 'Duplicate product');
   define('TEXT_META_TAGS_KEYWORDS','<strong>Meta Tag Keywords:</strong>');
   define('TEXT_META_TAGS_DESCRIPTION','<strong>Meta Tag Description:</strong>');
   define('TEXT_META_EXCLUDED', '<span class="alert">EXCLUDED</span>');
+
+  define('TEXT_PRODUCTS_XSELL_SORT_ORDER', 'XSell Sort Order:');

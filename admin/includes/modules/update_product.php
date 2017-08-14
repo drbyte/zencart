@@ -45,6 +45,7 @@
                             'products_qty_box_status' => zen_db_prepare_input($_POST['products_qty_box_status']),
                             'products_quantity_order_max' => zen_db_prepare_input($_POST['products_quantity_order_max']),
                             'products_sort_order' => (int)zen_db_prepare_input($_POST['products_sort_order']),
+                            'products_xsell_sort_order' => (int)zen_db_prepare_input($_POST['products_xsell_sort_order']),
                             'products_discount_type' => zen_db_prepare_input($_POST['products_discount_type']),
                             'products_discount_type_from' => zen_db_prepare_input($_POST['products_discount_type_from']),
                             'products_price_sorter' => zen_db_prepare_input($_POST['products_price_sorter'])
