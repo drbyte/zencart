@@ -32,6 +32,46 @@ if (zen_not_null($action)) {
       zen_record_admin_activity('Downloads-manager details added/updated for ' . $_POST['products_attributes_filename'], 'info');
       zen_redirect(zen_href_link(FILENAME_DOWNLOADS_MANAGER, 'padID=' . (int)$_GET['padID'] . '&page=' . (int)$_GET['page']));
       break;
+      case 'resetorders':
+        if (isset($_POST['padID'])) {
+            $padID = (int)$_POST['padID'];
+
+            // v155 or older
+            $sql = "update " . TABLE_ORDERS_PRODUCTS_DOWNLOAD . " opd, 
+                    " . TABLE_ORDERS . " o,
+                    " . TABLE_ORDERS_PRODUCTS . " op,
+                    " . TABLE_ORDERS_PRODUCTS_ATTRIBUTES . " opa,
+                    " . TABLE_PRODUCTS_ATTRIBUTES . " pa,
+                    " . TABLE_PRODUCTS_ATTRIBUTES_DOWNLOAD . " pad
+                    set opd.download_count = :maxcount,
+                    opd.download_maxdays = :maxdays
+                    WHERE op.orders_id = o.orders_id
+                    and op.orders_id = opd.orders_id 
+                    and pa.products_attributes_id = pad.products_attributes_id
+                    and pa.options_id = opa.products_options_id
+                    and pa.options_values_id = opa.products_options_values_id
+                    and pad.products_attributes_filename = opd.orders_products_filename
+                    and pad.products_attributes_id = " . (int) $padID;
+
+            // Syntax for v156:
+            $sql = "update " . TABLE_ORDERS_PRODUCTS_DOWNLOAD . " opd, 
+                    " . TABLE_ORDERS . " o,
+                    " . TABLE_PRODUCTS_ATTRIBUTES_DOWNLOAD . " pad
+                    set opd.download_count = :maxcount,
+                    opd.download_maxdays = :maxdays
+                    WHERE opd.orders_id = o.orders_id
+                    and opd.products_attributes_id = pad.products_attributes_id
+                    and pad.products_attributes_filename = opd.orders_products_filename
+                    and pad.products_attributes_id = " . (int)$padID;
+
+            $sql = $db->bindVars($sql, ':maxcount', ((int)DOWNLOAD_MAX_COUNT === 0 ? 0 : 'pad.products_attributes_maxcount'), 'noquotestring');
+            $sql = $db->bindVars($sql, ':maxdays', ((int)DOWNLOAD_MAX_DAYS === 0 ? 0 : 'DATEDIFF(CURDATE(), o.date_purchased) + pad.products_attributes_maxdays'), 'noquotestring');
+
+            $db->Execute($sql);
+            $messageStack->add_session('Done. ' . $db->affectedRows() . ' orders updated.', 'success');
+            zen_redirect(zen_href_link(FILENAME_DOWNLOADS_MANAGER, 'padID=' . (int)$_POST['padID'] . '&page=' . (int)$_GET['page']));
+        }
+      break;
   }
 }
 ?>
@@ -96,6 +136,7 @@ if (zen_not_null($action)) {
                 <th class="dataTableHeadingContent"><?php echo TABLE_TEXT_FILENAME; ?></th>
                 <th class="dataTableHeadingContent"><?php echo TABLE_TEXT_MAX_DAYS; ?></th>
                 <th class="dataTableHeadingContent"><?php echo TABLE_TEXT_MAX_COUNT; ?></th>
+                <th class="dataTableHeadingContent"><?php echo TEXT_RESET; ?>?</th>
                 <th class="dataTableHeadingContent">&nbsp;</th>
               </tr>
             </thead>
@@ -158,6 +199,13 @@ if (zen_not_null($action)) {
               <td><?php echo $filename_is_missing . '&nbsp;' . $products_downloads['products_attributes_filename']; ?></td>
               <td><?php echo $products_downloads['products_attributes_maxdays']; ?></td>
               <td><?php echo $products_downloads['products_attributes_maxcount']; ?></td>
+
+              <td><?php echo zen_draw_form('resetorders', FILENAME_DOWNLOADS_MANAGER, zen_get_all_get_params(array('padID', 'action')) . '&action=resetorders&page=' . $_GET['page'])
+               . zen_draw_hidden_field('padID', $products_downloads_query->fields['products_attributes_id']); ?>
+               <button type="submit" class="reset_order_downloads"><i class="fa fa-refresh"></i></button>
+               <?php echo '</form>'; ?>
+               </td>
+
               <td class="text-right"><?php
                   if (isset($padInfo) && is_object($padInfo) && ($products_downloads['products_attributes_id'] == $padInfo->products_attributes_id)) {
                     echo zen_image(DIR_WS_IMAGES . 'icon_arrow_right.gif', '');

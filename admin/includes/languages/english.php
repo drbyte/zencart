@@ -451,6 +451,8 @@ define('TEXT_FIELD_REQUIRED', '&nbsp;<span class="fieldRequired">* Required</spa
 
 define('ERROR_NO_DEFAULT_CURRENCY_DEFINED', 'Error: There is currently no default currency set. Please set one at: Administration Tools->Localization->Currencies');
 
+define('TEXT_RESET', 'Reset');
+
 define('TEXT_NONE', '--none--');
 define('TEXT_TOP', 'Top');
 define('PLEASE_SELECT', 'Please select ...');
