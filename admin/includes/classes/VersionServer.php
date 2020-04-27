@@ -10,6 +10,7 @@ class VersionServer
 {
     protected $projectVersionServer = 'https://ping.zen-cart.com/zcversioncheck';
     protected $pluginVersionServer = 'https://ping.zen-cart.com/plugincheck';
+    protected $manifestServer = 'https://ping.zen-cart.com/api/manifest';
 
     public function __construct()
     {
@@ -70,6 +71,29 @@ class VersionServer
         }
         return $response;
 
+    }
+    public function getFilesManifest($version = null)
+    {
+        if (empty($version)) {
+            $version = PROJECT_VERSION_MAJOR . PROJECT_VERSION_MINOR;
+        }
+        $version = preg_replace('/\D/', '', $version);
+
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $this->manifestServer . '/v' . (int)$version);
+        curl_setopt($ch, CURLOPT_VERBOSE, 0);
+        curl_setopt($ch, CURLOPT_HEADER, false);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 9);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 9);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_USERAGENT, 'Manifest Check [v' . (int)$version . '] ' . HTTP_SERVER);
+        $response = curl_exec($ch);
+        $error = curl_error($ch);
+        $errno = curl_errno($ch);
+        if ($errno > 0) {
+            return $this->formatCurlError($errno, $error);
+        }
+        return $response;
     }
 
     public function isProjectCurrent($newVersionInfo)
