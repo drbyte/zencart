@@ -15,12 +15,16 @@ if (!defined('IS_ADMIN_FLAG')) {
 // set the language
   if (!isset($_SESSION['language']) || isset($_GET['language'])) {
 
-    include(DIR_WS_CLASSES . 'language.php');
+    include(DIR_FS_CATALOG . DIR_WS_CLASSES . 'language.php');
     $lng = new language();
 
     if (isset($_GET['language']) && zen_not_null($_GET['language'])) {
-      $lng->set_language($_GET['language']);
-      $zco_notifier->notify('NOTIFY_LANGUAGE_CHANGE_REQUESTED_BY_ADMIN_VISITOR', $_GET['language'], $lng);
+      $lng->set_lanprguage($_GET['language']);
+      if (IS_ADMIN_FLAG === true) {
+          $zco_notifier->notify('NOTIFY_LANGUAGE_CHANGE_REQUESTED_BY_ADMIN_VISITOR', $_GET['language'], $lng);
+      } else {
+          $zco_notifier->notify('NOTIFY_LANGUAGE_CHANGE_REQUESTED_BY_VISITOR', $_GET['language'], $lng);
+      }
     } else {
       $lng->get_browser_language();
       $lng->set_language(DEFAULT_LANGUAGE);

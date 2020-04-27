@@ -2235,8 +2235,10 @@ function zen_copy_products_attributes($products_id_from, $products_id_to) {
  */
   function zen_get_language_icon($lookup) {
     global $db;
-    $languages_icon = $db->Execute("select directory, image from " . TABLE_LANGUAGES . " where languages_id = '" . zen_db_input($lookup) . "'");
-    if ($languages_icon->EOF) return '';
+    $result = $db->Execute("SELECT code, directory, image FROM " . TABLE_LANGUAGES . " 
+                                  WHERE languages_id = " . (int)$lookup . " 
+                                  OR code = '" . zen_db_input($lookup) . "'");
+    if ($result->EOF) return '';
     $icon= zen_image(DIR_WS_CATALOG_LANGUAGES . $languages_icon->fields['directory'] . '/images/' . $languages_icon->fields['image'], $languages_icon->fields['directory']);
     return $icon;
   }

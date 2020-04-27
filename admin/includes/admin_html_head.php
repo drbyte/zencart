@@ -20,6 +20,7 @@ if (!defined('IS_ADMIN_FLAG')) {
 <link rel="stylesheet" href="includes/css/jAlert.css">
 <link rel="stylesheet" href="includes/css/menu.css">
 <link rel="stylesheet" href="includes/css/stylesheet.css">
+<link rel="stylesheet" href="includes/css/flag-icon.min.css">
 <?php if (file_exists($file = 'includes/css/' . basename($PHP_SELF, '.php') . '.css')) { ?>
   <link rel="stylesheet" href="<?php echo $file; ?>">
 <?php } ?>

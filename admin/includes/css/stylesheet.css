@@ -858,6 +858,13 @@ input.faint {
 .orderProductsPopover {
     color: #333;
 }
+.textarea-language-icon {
+    vertical-align: top;
+    padding-top: 2rem;
+}
+.flag-icon {
+    font-size: 1.7rem;
+}
 
 /* Forms - put this last */
 .form-control {

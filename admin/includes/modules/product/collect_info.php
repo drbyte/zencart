@@ -180,7 +180,7 @@ if (zen_get_categories_status($current_category_id) == 0 && $pInfo->products_sta
           ?>
         <div class="input-group">
           <span class="input-group-addon">
-              <?php echo zen_image(DIR_WS_CATALOG_LANGUAGES . $languages[$i]['directory'] . '/images/' . $languages[$i]['image'], $languages[$i]['name']); ?>
+              <span class="flag-icon flag-icon-us" title="EN"></span>
           </span>
           <?php echo zen_draw_input_field('products_name[' . $languages[$i]['id'] . ']', htmlspecialchars(isset($products_name[$languages[$i]['id']]) ? stripslashes($products_name[$languages[$i]['id']]) : zen_get_products_name($pInfo->products_id, $languages[$i]['id']), ENT_COMPAT, CHARSET, TRUE), zen_set_field_length(TABLE_PRODUCTS_DESCRIPTION, 'products_name') . ' class="form-control"'); ?>
         </div>
@@ -326,8 +326,8 @@ if (zen_get_categories_status($current_category_id) == 0 && $pInfo->products_sta
         for ($i = 0, $n = count($languages); $i < $n; $i++) {
           ?>
         <div class="input-group">
-          <span class="input-group-addon">
-              <?php echo zen_image(DIR_WS_CATALOG_LANGUAGES . $languages[$i]['directory'] . '/images/' . $languages[$i]['image'], $languages[$i]['name']); ?>
+          <span class="input-group-addon textarea-language-icon">
+              <span class="flag-icon flag-icon-us"></span>
           </span>
           <?php echo zen_draw_textarea_field('products_description[' . $languages[$i]['id'] . ']', 'soft', '100', '30', htmlspecialchars((isset($products_description[$languages[$i]['id']])) ? stripslashes($products_description[$languages[$i]['id']]) : zen_get_products_description($pInfo->products_id, $languages[$i]['id']), ENT_COMPAT, CHARSET, TRUE), 'class="editorHook form-control"'); ?>
         </div>
