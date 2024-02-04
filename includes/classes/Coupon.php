@@ -3,6 +3,72 @@ declare(strict_types=1);
 
 class Coupon extends base
 {
+    protected array $data = [];
+
+    public function __construct(protected string|int $lookup, ?int $language_id)
+    {
+        $this->loadRelations(coupon_id: is_int($lookup) ? $lookup : null, coupon_code: is_string($lookup) ? $lookup : null, language_id: $language_id);
+    }
+
+    protected function loadRelations(?int $coupon_id, ?string $coupon_code, ?int $language_id): array
+    {
+        global $db;
+
+        if ($coupon_id === null && !empty($coupon_code)) {
+            $sql = "SELECT *
+                FROM " . TABLE_COUPONS . "
+                WHERE coupon_code = :coupon_code";
+            $sql = $db->bindVars($sql, ':coupon_code', $coupon_code, 'string');
+            $result = $db->Execute($sql, 1);
+
+            if ($result->EOF) {
+                $this->data = [];
+                return [];
+            }
+            $coupon_id = (int)$result->fields['coupon_id'];
+
+        } else {
+            $sql = "SELECT *
+                FROM " . TABLE_COUPONS . "
+                WHERE coupon_id = " . (int)$coupon_id;
+            $result = $db->Execute($sql, 1);
+        }
+
+        if ($result->EOF) {
+            $this->data = [];
+            return [];
+        }
+        $this->data = $result->fields;
+
+        $sql = "SELECT coupon_name, coupon_description, language_id
+                FROM " . TABLE_COUPONS_DESCRIPTION . "
+                WHERE coupon_id = " . (int)$coupon_id;
+        $result = $db->Execute($sql);
+        foreach ($result as $record) {
+            // if a language_id is provided, load only that one, unnested
+            if ((int)$record['language_id'] === $language_id) {
+                $this->data['coupon_name'] = $record['coupon_name'];
+                $this->data['coupon_description'] = $record['coupon_description'];
+                break;
+            }
+            $this->data['coupon_name'][$record['language_id']] = $record['coupon_name'];
+            $this->data['coupon_description'][$record['language_id']] = $record['coupon_description'];
+        }
+
+        $sql = "SELECT *
+                FROM " . TABLE_COUPON_RESTRICT . "
+                WHERE coupon_id = " . (int)$coupon_id;
+        $result = $db->Execute($sql);
+        foreach ($result as $record) {
+            $this->data['restrictions'][] = $record;
+        }
+
+        return $this->data;
+    }
+
+
+    /******** STATIC HELPER METHODS ********/
+
     public static function codeExists(string $code): bool
     {
         global $db;
