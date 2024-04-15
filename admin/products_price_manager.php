@@ -303,10 +303,10 @@ if (!empty($action)) {
       ?>
       <?php
 // show when product is linked
-      if  (!empty($products_filter) && $products_filter !== 0 && zen_get_product_is_linked($products_filter) === 'true') {
+      if  (!empty($products_filter) && $products_filter !== 0 && zen_get_product_is_linked($products_filter) === true) {
         ?>
         <div class="row text-center">
-          <i class="fa-solid fa-square fa-lg txt-linked" aria-hidden="true" title="<?php echo IMAGE_ICON_LINKED; ?>"></i>&nbsp;&nbsp;<?php echo TEXT_LEGEND_LINKED . '&nbsp;' . zen_get_product_is_linked($products_filter, 'true'); ?>
+          <i class="fa-solid fa-square fa-lg txt-linked" aria-hidden="true" title="<?php echo IMAGE_ICON_LINKED; ?>"></i>&nbsp;&nbsp;<?php echo TEXT_LEGEND_LINKED . '&nbsp;' . zen_get_product_is_linked($products_filter, true); ?>
         </div>
       <?php } ?>
       <?php
@@ -509,7 +509,7 @@ if (!empty($action)) {
 
         <?php
 // auto fix bad or missing products master_categories_id
-        if (zen_get_product_is_linked($products_filter) == 'false' and $pInfo->master_categories_id != zen_get_products_category_id($products_filter)) {
+        if (zen_get_product_is_linked($products_filter) !== true && $pInfo->master_categories_id != zen_get_products_category_id($products_filter)) {
           $sql = "UPDATE " . TABLE_PRODUCTS . "
                   SET master_categories_id = " . (int)zen_get_products_category_id($products_filter) . "
                   WHERE products_id = " . (int)$products_filter;
@@ -518,7 +518,7 @@ if (!empty($action)) {
         }
         ?>
 
-        <?php if (isset($pInfo->products_id) && $pInfo->products_id != '') { ?>
+        <?php if (!empty($pInfo->products_id)) { ?>
           <div class="row"><?php echo zen_draw_separator('pixel_black.gif', '100%', '2'); ?></div>
           <h2><?php echo TEXT_PRODUCT_INFO; ?> #<?php echo $pInfo->products_id; ?>&nbsp;&nbsp;<?php echo $pInfo->products_name; ?>&nbsp;&nbsp;&nbsp;<?php echo TEXT_PRODUCTS_MODEL; ?> <?php echo $pInfo->products_model; ?></h2>
           <div class="row"><?php echo zen_draw_separator('pixel_black.gif', '100%', '2'); ?></div>
@@ -593,7 +593,7 @@ if (!empty($action)) {
                 <?php echo zen_draw_separator('pixel_black.gif', '100%', '2'); ?>
               </div>
 
-              <?php if (zen_get_product_is_linked($products_filter) == 'true') { ?>
+              <?php if (zen_get_product_is_linked($products_filter) === true) { ?>
                 <div class="from-group">
                   <?php echo zen_draw_label(TEXT_MASTER_CATEGORIES_ID, 'master_category', 'class="col-sm-3 control-label"'); ?>
                   <div class="col-sm-9 col-md-6">
@@ -607,7 +607,7 @@ if (!empty($action)) {
                 <div class="col-sm-12 text-center"><?php echo ($action == '' ? '<span class="alert">' . TEXT_INFO_PREVIEW_ONLY . '</span>' : TEXT_INFO_UPDATE_REMINDER); ?></div>
               <?php } ?>
 
-              <?php if (zen_get_product_is_linked($products_filter) == 'false' and $pInfo->master_categories_id != zen_get_products_category_id($products_filter)) { ?>
+              <?php if (zen_get_product_is_linked($products_filter) !== true && $pInfo->master_categories_id != zen_get_products_category_id($products_filter)) { ?>
                 <div class="col-sm-12">
                   <span class="alert"><?php echo sprintf(TEXT_INFO_MASTER_CATEGORIES_ID_WARNING, $pInfo->master_categories_id, zen_get_products_category_id($products_filter)); ?></span>
                   <br><strong><?php echo sprintf(TEXT_INFO_MASTER_CATEGORIES_ID_UPDATE_TO_CURRENT, $pInfo->master_categories_id, zen_get_products_category_id($products_filter)); ?></strong>

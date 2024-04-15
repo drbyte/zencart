@@ -1371,23 +1371,22 @@ function zen_count_products_in_cats($category_id) {
 
 /**
  * Return the number of products in a category
- * TABLES: products, products_to_categories, categories
+ *
  * syntax for count: zen_get_products_to_categories($categories->fields['categories_id'], true)
  * syntax for linked products: zen_get_products_to_categories($categories->fields['categories_id'], true, 'products_active')
- *
- * @TODO - refactor to use only a boolean response instead of string 'true'
  *
  * @param int $category_id
  * @param bool $include_inactive
  * @param string $counts_what products|products_active
  * @return bool|string
  */
-function zen_get_products_to_categories($category_id, $include_inactive = false, $counts_what = 'products') {
+function zen_get_products_to_categories($category_id, bool $include_inactive = false, string $counts_what = 'products'): string|bool
+{
     global $db;
 
     $products_count = $cat_products_count = 0;
-    $products_linked = '';
-    if ($include_inactive == true) {
+    $products_linked = false;
+    if ($include_inactive === true) {
         switch ($counts_what) {
             case ('products'):
                 $cat_products_query = "SELECT count(*) as total
@@ -1427,11 +1426,10 @@ function zen_get_products_to_categories($category_id, $include_inactive = false,
             if (!$cat_products->EOF) $cat_products_count += $cat_products->fields['total'];
             break;
         case ('products_active'):
-            while (!$cat_products->EOF) {
-                if (zen_get_product_is_linked($cat_products->fields['products_id']) == 'true') {
-                    return $products_linked = 'true';
+            foreach ($cat_products as $cat_product) {
+                if (zen_get_product_is_linked((int)$cat_product['products_id']) === true) {
+                    return $products_linked = true;
                 }
-                $cat_products->MoveNext();
             }
             break;
     }
@@ -1443,18 +1441,17 @@ function zen_get_products_to_categories($category_id, $include_inactive = false,
     $cat_child_categories = $db->Execute($child_categories_query);
 
     if ($cat_child_categories->RecordCount() > 0) {
-        while (!$cat_child_categories->EOF) {
+        foreach ($cat_child_categories as $cat_child_category) {
             switch ($counts_what) {
                 case ('products'):
-                    $cat_products_count += zen_get_products_to_categories($cat_child_categories->fields['categories_id'], $include_inactive);
+                    $cat_products_count += zen_get_products_to_categories($cat_child_category['categories_id'], $include_inactive);
                     break;
                 case ('products_active'):
-                    if (zen_get_products_to_categories($cat_child_categories->fields['categories_id'], true, 'products_active') == 'true') {
-                        return $products_linked = 'true';
+                    if (zen_get_products_to_categories($cat_child_category['categories_id'], true, 'products_active') === true) {
+                        return $products_linked = true;
                     }
                     break;
             }
-            $cat_child_categories->MoveNext();
         }
     }
 

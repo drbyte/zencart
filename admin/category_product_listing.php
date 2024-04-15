@@ -994,7 +994,7 @@ if (is_dir(DIR_FS_CATALOG_IMAGES)) {
                   $zco_notifier->notify('NOTIFY_ADMIN_PROD_LISTING_ADD_ICON', $product, $additional_icons);
                   echo $additional_icons;
                   ?>
-                  <?php if (zen_get_product_is_linked($product['products_id']) === 'true') {
+                  <?php if (zen_get_product_is_linked($product['products_id']) === true) {
                     echo zen_icon('linked', IMAGE_ICON_LINKED, 'lg');
                   } else { ?>
                     <i class="fa-solid fa-square fa-lg txt-transparent"></i> <!-- blank icon to preserve vertical alignment with additional icons -->
@@ -1041,7 +1041,7 @@ if (is_dir(DIR_FS_CATALOG_IMAGES)) {
                       <?php if ($zc_products->get_allow_add_to_cart($product['products_id']) === "Y") { ?>
 <?php
                      $ppm_color = 'btn-pricemanager-on';
-                     if (zen_has_product_discounts($product['products_id']) === 'true') {
+                     if (($has_discounts = zen_has_product_discounts($product['products_id'])) && ($has_discounts === true || $has_discounts === 'true')) {
                         $ppm_color = 'btn-pricemanager-on-enabled';
                      }
 ?>

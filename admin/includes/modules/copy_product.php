@@ -89,7 +89,7 @@ if ($metatags_defined) {
     ];
 }
 //only ask about linked categories if defined
-if (zen_get_product_is_linked($pInfo->products_id) == 'true') {
+if (zen_get_product_is_linked($pInfo->products_id)) {
     $contents[] = [
         'text' => '<h6>' . TEXT_COPY_LINKED_CATEGORIES . '</h6>' .
             '<div class="radio"><label>' . zen_draw_radio_field('copy_linked_categories', 'copy_linked_categories_yes', true) . TEXT_YES . '</label></div>' .
@@ -98,8 +98,8 @@ if (zen_get_product_is_linked($pInfo->products_id) == 'true') {
     ];
 }
 // only ask if product has qty discounts defined
-if (zen_has_product_discounts($pInfo->products_id) == 'true') {
-    $contents[] = [
+if (zen_has_product_discounts($pInfo->products_id)) {
+        $contents[] = [
         'text' => '<h6>' . TEXT_COPY_DISCOUNTS . '</h6>' .
             '<div class="radio"><label>' . zen_draw_radio_field('copy_discounts', 'copy_discounts_yes', true) . TEXT_YES . '</label></div>' .
             '<div class="radio"><label>' . zen_draw_radio_field('copy_discounts', 'copy_discounts_no') . TEXT_NO . '</label></div>',

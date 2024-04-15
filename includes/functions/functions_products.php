@@ -504,26 +504,25 @@ function zen_get_products_status($product_id)
 }
 
 /**
- * check if linked
- * @TODO - check to see whether true/false string responses can be changed to boolean
+ * check if product is linked to multiple categories
  *
  * @param int $product_id
  */
-function zen_get_product_is_linked($product_id, $show_count = 'false')
+function zen_get_product_is_linked($product_id, bool $show_count = false): bool|int
 {
     global $db;
 
-    $sql = "SELECT * FROM " . TABLE_PRODUCTS_TO_CATEGORIES . (!empty($product_id) ? " where products_id=" . (int)$product_id : "");
+    $sql = "SELECT * FROM " . TABLE_PRODUCTS_TO_CATEGORIES . (!empty($product_id) ? " WHERE products_id=" . (int)$product_id : "");
     $check_linked = $db->Execute($sql);
     if ($check_linked->RecordCount() > 1) {
-        if ($show_count === 'true') {
-            return $check_linked->RecordCount();
-        } else {
-            return 'true';
+        if ($show_count) {
+            return (int)$check_linked->RecordCount();
         }
-    } else {
-        return 'false';
+
+        return true;
     }
+
+    return false;
 }
 
 /**
@@ -819,20 +818,17 @@ function zen_get_parent_category_id($product_id)
 }
 
 /**
- * @TODO - check to see whether true/false string responses can be changed to boolean
  * check if products has quantity-discounts defined
  * @param int $product_id
- * @return string
  */
-function zen_has_product_discounts($product_id)
+function zen_has_product_discounts($product_id): bool
 {
     global $db;
 
     $check_discount_query = "SELECT products_id FROM " . TABLE_PRODUCTS_DISCOUNT_QUANTITY . " WHERE products_id=" . (int)$product_id;
     $check_discount = $db->Execute($check_discount_query, 1);
 
-    // @TODO - check calling references in application code to see whether true/false string responses can be changed to boolean
-    return (!$check_discount->EOF) ? 'true' : 'false';
+    return !$check_discount->EOF;
 }
 
 /**
@@ -868,14 +864,13 @@ function zen_set_product_status($product_id, $status)
 }
 
 /**
- * @TODO - can the ptc string 'true' be changed to boolean?
  * @param int $product_id
- * @param string $ptc
+ * @param bool $include_linked
  */
-function zen_remove_product($product_id, $ptc = 'true')
+function zen_remove_product($product_id, $include_linked = true): void
 {
     global $db, $zco_notifier;
-    $zco_notifier->notify('NOTIFIER_ADMIN_ZEN_REMOVE_PRODUCT', [], $product_id, $ptc);
+    $zco_notifier->notify('NOTIFIER_ADMIN_ZEN_REMOVE_PRODUCT', [], $product_id, $include_linked);
 
     $product_id = (int)$product_id;
     $product_image = $db->Execute(
@@ -920,7 +915,7 @@ function zen_remove_product($product_id, $ptc = 'true')
 
     $db->Execute("DELETE FROM " . TABLE_PRODUCTS . " WHERE products_id = $product_id LIMIT 1");
 
-//    if ($ptc == 'true') {
+//    if ($include_linked === true || $include_linked === 'true') { // string supported for backward compatibility until ZCv3.0
     $db->Execute("DELETE FROM " . TABLE_PRODUCTS_TO_CATEGORIES . " WHERE products_id = $product_id");
 //    }
 
@@ -964,6 +959,8 @@ function zen_remove_product($product_id, $ptc = 'true')
  * Remove downloads (if any) from specified product
  *
  * @param int $product_id
+ *
+ * @TODO - ref duplication in zen_delete_products_attributes()
  */
 function zen_products_attributes_download_delete($product_id)
 {

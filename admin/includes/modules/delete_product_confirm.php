@@ -42,7 +42,7 @@ if ($do_delete_flag) {
   // echo 'count of category links for this product=' . count($count_categories . '<br>';
   // if not linked to any categories, do delete:
   if (empty($count_categories)) {
-    zen_remove_product($product_id, $delete_linked);
+    zen_remove_product($product_id, $delete_linked === 'true');
   }
 } // endif $do_delete_flag
 // if this is a single-product delete, redirect to categories page
