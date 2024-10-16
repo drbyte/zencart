@@ -60,13 +60,14 @@
 
     $separator = '&';
 
-    while (substr($link, -1) == '&' || substr($link, -1) == '?') $link = substr($link, 0, -1);
-// Add the session ID when moving from different HTTP and HTTPS servers, or when SID is defined
-    if ($add_session_id == true && $session_started == true && SESSION_FORCE_COOKIE_USE == 'False') {
-      if (defined('SID') && !empty(constant('SID'))) {
-        $sid = constant('SID');
-      } elseif ( ($request_type == 'NONSSL' && $connection == 'SSL' && ENABLE_SSL == 'true') || ($request_type == 'SSL' && $connection == 'NONSSL') ) {
-        if ($http_domain != $https_domain) {
+    while (str_ends_with($link, '&') || str_ends_with($link, '?')) {
+        $link = substr($link, 0, -1);
+    }
+
+    // Add the session ID when moving from different HTTP and HTTPS servers
+    if ($add_session_id === true && $session_started === true && SESSION_FORCE_COOKIE_USE === 'False') {
+      if ( ($request_type === 'NONSSL' && $connection === 'SSL' && ENABLE_SSL === 'true') || ($request_type === 'SSL' && $connection === 'NONSSL') ) {
+        if ($http_domain !== $https_domain) {
           $sid = zen_session_name() . '=' . zen_session_id();
         }
       }
@@ -220,7 +221,7 @@ function zen_image($src, $title = '', $width = '', $height = '', $parameters = '
     if (PRODUCTS_IMAGE_NO_IMAGE_STATUS === '1' && !is_file($src)) {
         $src = DIR_WS_IMAGES . PRODUCTS_IMAGE_NO_IMAGE;
     }
-    
+
     $zco_notifier->notify('NOTIFY_OPTIMIZE_IMAGE', $template_dir, $src, $title, $width, $height, $parameters);
 
     // Determine if the source-file exists.
@@ -779,12 +780,14 @@ function zen_js_zone_list(string $country, string $form, string $field) {
  *  Hide form elements while including session id info
  *  IMPORTANT: This should be used in every FORM that has an OnSubmit() function tied to it, to prevent unexpected logouts
  */
-  function zen_hide_session_id() {
+  function zen_hide_session_id(): string
+  {
     global $session_started;
-
-    if ($session_started == true && defined('SID') && !empty(SID) ) {
+    if ($session_started === true) {
       return zen_draw_hidden_field(zen_session_name(), zen_session_id());
     }
+
+    return '';
   }
 
   /**

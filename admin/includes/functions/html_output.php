@@ -8,7 +8,7 @@
 
 ////
 // The HTML href link wrapper function
-function zen_href_link($page = '', $parameters = '', $connection = 'SSL', $add_session_id = true) {
+function zen_href_link($page = '', $parameters = '', $connection = 'SSL', $add_session_id = false) {
     global $zco_notifier, $session_started;
 
     // Notify any observers listening for href_link calls
@@ -52,11 +52,9 @@ function zen_href_link($page = '', $parameters = '', $connection = 'SSL', $add_s
     // Replace duplicates of '&' and instances of '&amp;'  with a single '&'
     $link = preg_replace('/(&amp;|&){2,}|&amp;/', '&', $link);
 
-    // Add the session ID when moving from different HTTP and HTTPS servers, or when SID is defined
-    if ( ($add_session_id == true) && ($session_started == true) ) {
-        if (defined('SID') && constant('SID') != '') {
-            $link .= $separator . zen_output_string(constant('SID'));
-        }
+    // Add the session ID when moving from different HTTP and HTTPS servers
+    if ($add_session_id === true && $session_started === true) {
+        $link .= $separator . zen_output_string(zen_session_name() . '=' . zen_session_id());
     }
     $link = preg_replace('/(&{2,}|(&amp;)+)/', '&', $link);
 
@@ -562,7 +560,7 @@ function zen_draw_pull_down_menu($name, $values, $default = '', $parameters = ''
   function zen_hide_session_id() {
     global $session_started;
 
-    if ( ($session_started == true) && defined('SID') && !empty(SID) ) {
+    if ($session_started === true) {
       return zen_draw_hidden_field(zen_session_name(), zen_session_id());
     }
   }
