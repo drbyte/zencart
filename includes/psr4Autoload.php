@@ -29,6 +29,7 @@ $psr4Autoloader->addPrefix('Zencart\ViewBuilders', DIR_FS_CATALOG . DIR_WS_CLASS
 $psr4Autoloader->addPrefix('Zencart\Exceptions', DIR_FS_CATALOG . DIR_WS_CLASSES . 'Exceptions');
 $psr4Autoloader->addPrefix('Zencart\Filters', DIR_FS_CATALOG . DIR_WS_CLASSES . 'Filters');
 $psr4Autoloader->addPrefix('Zencart\Request', DIR_FS_CATALOG . DIR_WS_CLASSES);
+$psr4Autoloader->addPrefix('Zencart\Shipping\Packing', DIR_FS_CATALOG . DIR_WS_CLASSES . 'Shipping/Packing');
 
 // -----
 // Admin-only classes
