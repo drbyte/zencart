@@ -15,6 +15,7 @@
       <directory suffix="Test.php">./not_for_release/testFramework/Unit/testsPasswordHash/</directory>
       <directory suffix="Test.php">./not_for_release/testFramework/Unit/testsSessions/</directory>
       <directory suffix="Test.php">./not_for_release/testFramework/Unit/testsCategories/</directory>
+      <directory suffix="Test.php">./not_for_release/testFramework/Unit/testsShippingPacking/</directory>
     </testsuite>
   </testsuites>
   <php>
