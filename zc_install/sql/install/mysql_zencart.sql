@@ -1317,6 +1317,56 @@ CREATE TABLE orders_products_attributes (
 # --------------------------------------------------------
 
 #
+# Table structure for table 'orders_packages'
+#
+
+DROP TABLE IF EXISTS orders_packages;
+CREATE TABLE orders_packages (
+  orders_packages_id int(11) NOT NULL auto_increment,
+  orders_id int(11) NOT NULL default 0,
+  package_sequence int(5) NOT NULL default 1,
+  package_count int(5) NOT NULL default 1,
+  box_id int(11) default NULL,
+  box_code varchar(32) NOT NULL default '',
+  box_title varchar(64) NOT NULL default '',
+  quoted_length decimal(8,4) default NULL,
+  quoted_width decimal(8,4) default NULL,
+  quoted_height decimal(8,4) default NULL,
+  quoted_weight decimal(8,4) default NULL,
+  quoted_billable_weight decimal(8,4) default NULL,
+  tare_weight decimal(8,4) default NULL,
+  dim_units varchar(16) NOT NULL default '',
+  weight_units varchar(16) NOT NULL default '',
+  packer_code varchar(32) NOT NULL default '',
+  plan_origin varchar(16) NOT NULL default 'quoted',
+  plan_is_stale tinyint(1) NOT NULL default 0,
+  packed_at datetime default NULL,
+  PRIMARY KEY (orders_packages_id),
+  KEY idx_orders_id_seq_zen (orders_id, package_sequence)
+) ENGINE=MyISAM;
+
+# --------------------------------------------------------
+
+#
+# Table structure for table 'orders_packages_products'
+#
+
+DROP TABLE IF EXISTS orders_packages_products;
+CREATE TABLE orders_packages_products (
+  orders_packages_products_id int(11) NOT NULL auto_increment,
+  orders_packages_id int(11) NOT NULL default 0,
+  orders_id int(11) NOT NULL default 0,
+  orders_products_id int(11) NOT NULL default 0,
+  products_quantity float NOT NULL default 0,
+  PRIMARY KEY (orders_packages_products_id),
+  KEY idx_pkg_id_zen (orders_packages_id),
+  KEY idx_orders_id_zen (orders_id),
+  KEY idx_op_id_zen (orders_products_id)
+) ENGINE=MyISAM;
+
+# --------------------------------------------------------
+
+#
 # Table structure for table 'orders_products_download'
 #
 
@@ -1674,6 +1724,8 @@ CREATE TABLE products (
   products_width DECIMAL(8,4) DEFAULT NULL,
   products_height DECIMAL(8,4) DEFAULT NULL,
   product_ships_in_own_box TINYINT DEFAULT NULL,
+  products_no_stack tinyint(1) NOT NULL default 0,
+  products_orientation_lock tinyint(1) NOT NULL default 0,
   products_status tinyint(1) NOT NULL default 0,
   products_tax_class_id int(11) NOT NULL default 0,
   manufacturers_id int(11) default NULL,
@@ -2102,6 +2154,38 @@ CREATE TABLE salemaker_sales (
   KEY idx_sale_status_zen (sale_status),
   KEY idx_sale_date_start_zen (sale_date_start),
   KEY idx_sale_date_end_zen (sale_date_end)
+) ENGINE=MyISAM;
+
+# --------------------------------------------------------
+
+#
+# Table structure for table 'shipping_boxes'
+#
+
+DROP TABLE IF EXISTS shipping_boxes;
+CREATE TABLE shipping_boxes (
+  box_id int(11) NOT NULL auto_increment,
+  box_code varchar(32) NOT NULL default '',
+  box_title varchar(64) NOT NULL default '',
+  interior_length decimal(8,4) NOT NULL default 0,
+  interior_width decimal(8,4) NOT NULL default 0,
+  interior_height decimal(8,4) NOT NULL default 0,
+  exterior_length decimal(8,4) NOT NULL default 0,
+  exterior_width decimal(8,4) NOT NULL default 0,
+  exterior_height decimal(8,4) NOT NULL default 0,
+  interior_margin decimal(8,4) default NULL,
+  dim_units varchar(16) NOT NULL default 'inches',
+  tare_weight decimal(8,4) NOT NULL default 0,
+  max_payload_weight decimal(8,4) default NULL,
+  weight_units varchar(16) NOT NULL default 'pounds',
+  destination_scope varchar(16) NOT NULL default 'both',
+  carrier_code varchar(32) default NULL,
+  is_enabled tinyint(1) NOT NULL default 1,
+  sort_order int(11) NOT NULL default 0,
+  last_modified datetime default NULL,
+  PRIMARY KEY (box_id),
+  UNIQUE KEY idx_box_code_zen (box_code),
+  KEY idx_enabled_scope_zen (is_enabled, destination_scope)
 ) ENGINE=MyISAM;
 
 # --------------------------------------------------------
@@ -2723,6 +2807,13 @@ INSERT INTO configuration (configuration_title, configuration_key, configuration
 INSERT INTO configuration (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) VALUES ('Larger packages - added packaging percentage:weight', 'SHIPPING_BOX_PADDING', '10:0', 'What is the weight of typical packaging for Large packages?<br>Example:<br>Unit = Your SHIPPING_WEIGHT_UNITS (lbs or kgs) <br> 10% + 1 Unit 10:1<br>10% + 0 Units 10:0<br>0% + 5 Units 0:5<br>0% + 1/2 Unit 0:0.5<br>0% + 0 Units 0:0', 7, 5, now());
 INSERT INTO configuration (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added, set_function) VALUES ('Shipping Weight Units', 'SHIPPING_WEIGHT_UNITS', 'lbs', 'How should shipping modules treat the weights set on products? (remember if using lbs, 1 ounce=0.0625). <b>NOTE: You must still manually update your language files to show the correct units visually.</b>', 7, 6, now(), 'zen_cfg_select_option([\'lbs\', \'kgs\'],');
 INSERT INTO configuration (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added, set_function) VALUES ('Shipping Dimension Units', 'SHIPPING_DIMENSION_UNITS', 'inches', 'In which unit of measurement does your store save length/width/height for your products?', 7, 7, now(), 'zen_cfg_select_option([\'inches\', \'centimeters\'],');
+INSERT INTO configuration (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added, set_function) VALUES ('Dimensional Packing: Enable', 'SHIPPING_PACKING_ENABLED', 'false', 'Pack cart items into your defined shipping boxes, so size-aware carriers can be quoted per parcel?<br><br>Requires product length/width/height to be entered, and at least one box defined. Shipping modules that do not support packing are unaffected.', 7, 20, now(), 'zen_cfg_select_option([\'true\', \'false\'],');
+INSERT INTO configuration (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added, set_function) VALUES ('Dimensional Packing: Interior Margin %', 'SHIPPING_PACKING_INTERIOR_MARGIN_PCT', '5', 'Percentage trimmed from each interior dimension of a box to allow for packing material and handling slack. Real packing rarely fills a carton completely; 5 leaves about 86% of the volume usable. Raise it if parcels are coming out too full to close.', 7, 21, now(), NULL);
+INSERT INTO configuration (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added, set_function) VALUES ('Dimensional Packing: Missing Dimensions', 'SHIPPING_PACKING_MISSING_DIMS_POLICY', 'legacy', 'What to do when a cart contains a product with no length/width/height.<br><br><b>legacy</b>: quote the whole cart by weight only, exactly as before packing was enabled.<br><b>default_box</b>: pack the unmeasured items into the default box below, by weight.', 7, 22, now(), 'zen_cfg_select_option([\'legacy\', \'default_box\'],');
+INSERT INTO configuration (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added, set_function) VALUES ('Dimensional Packing: Default Box Code', 'SHIPPING_PACKING_DEFAULT_BOX_CODE', '', 'Box code used for products with no dimensions, when the policy above is default_box. Leave empty if not used.', 7, 23, now(), NULL);
+INSERT INTO configuration (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added, set_function) VALUES ('Dimensional Packing: Max Units Modelled', 'SHIPPING_PACKING_MAX_UNITS', '500', 'Above this many individual items in a cart, parcel counts are estimated from a representative sample instead of packing every item, to keep quoting fast. Such orders get no per-parcel packing slip.', 7, 24, now(), NULL);
+INSERT INTO configuration (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added, set_function) VALUES ('Dimensional Packing: Max Girth', 'SHIPPING_PACKING_MAX_GIRTH', '0', 'Largest allowed length + 2x(width + height) for a parcel, in your shipping dimension units. 0 means no limit. Shipping modules may override this with their own carrier limit.', 7, 25, now(), NULL);
+INSERT INTO configuration (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added, set_function) VALUES ('Dimensional Packing: Record On Orders', 'SHIPPING_PACKING_PERSIST', 'true', 'Save the parcel breakdown against each order, so packing slips can be printed per parcel?', 7, 26, now(), 'zen_cfg_select_option([\'true\', \'false\'],');
 
 # moved to product_types
 #INSERT INTO configuration (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, date_added) VALUES ('Product Virtual Default Status - Skip Shipping Address', 'PRODUCTS_VIRTUAL_DEFAULT', '0', 'What should the Default Virtual Product status be when adding new products?<br><br>0= Virtual Product Defaults to OFF<br>1= Virtual Product Defaults to ON<br>NOTE: Virtual Products do not require a Shipping Address', 7, 10, 'zen_cfg_select_option([\'0\', \'1\'], ', now());
