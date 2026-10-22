@@ -28,3 +28,5 @@ $define = [
     'TEXT_EDIT_PRODUCT' => 'Edit',
     'TEXT_SHOW_DISABLED' => 'Include disabled products',
 ];
+
+return $define;

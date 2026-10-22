@@ -59,3 +59,5 @@ $define = [
     'ERROR_MARGIN_NEGATIVE' => 'The packing allowance cannot be negative.',
     'ERROR_MARGIN_TOO_LARGE' => 'The packing allowance leaves no usable %s, so nothing would ever fit in this box.',
 ];
+
+return $define;
