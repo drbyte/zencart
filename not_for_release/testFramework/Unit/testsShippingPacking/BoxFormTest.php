@@ -313,4 +313,54 @@ class BoxFormTest extends TestCase
         $this->assertSame('M12', $boxes[0]->code);
         $this->assertSame(50.0, $boxes[0]->maxPayload->value);
     }
+
+    /**
+     * The dropdown's options come from the installed-modules cache, which stores module
+     * filenames. Anything that cannot be a module code is dropped rather than offered.
+     */
+    public function testCarrierCodesComeFromTheInstalledModulesList(): void
+    {
+        $codes = BoxForm::carrierCodes('flat.php;usps.php;canadapost.php');
+
+        $this->assertSame(['canadapost', 'flat', 'usps'], $codes);
+    }
+
+    public function testCarrierCodesToleratesAnEmptyOrRaggedList(): void
+    {
+        $this->assertSame([], BoxForm::carrierCodes(''));
+        $this->assertSame(['flat'], BoxForm::carrierCodes(' flat.php ;;'));
+    }
+
+    /**
+     * A box restricted to a module that has since been uninstalled must still show its
+     * own value, or opening the box to change something unrelated would silently drop
+     * the restriction on save.
+     */
+    public function testCarrierCodesKeepsAStoredCodeThatIsNoLongerInstalled(): void
+    {
+        $codes = BoxForm::carrierCodes('flat.php', 'uspsr');
+
+        $this->assertSame(['flat', 'uspsr'], $codes);
+        $this->assertSame(['flat'], BoxForm::carrierCodes('flat.php', 'flat'), 'No duplicate when it is installed.');
+    }
+
+    public function testACarrierCodeThatCouldNeverMatchIsRejectedRatherThanStored(): void
+    {
+        $result = BoxForm::validate(['carrier_code' => 'USPS Priority!'] + $this->input());
+
+        $this->assertSame(
+            ['ERROR_CARRIER_CODE_INVALID'],
+            array_column($result['errors'], 'key'),
+            'A code with characters no module filename can have would disable the box silently.'
+        );
+        $this->assertNull($result['values']['carrier_code']);
+    }
+
+    public function testACarrierCodeIsStoredLowercasedToMatchWhatModulesReport(): void
+    {
+        $result = BoxForm::validate(['carrier_code' => ' USPS '] + $this->input());
+
+        $this->assertSame([], $result['errors']);
+        $this->assertSame('usps', $result['values']['carrier_code']);
+    }
 }

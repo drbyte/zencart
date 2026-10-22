@@ -19,6 +19,12 @@ namespace Zencart\Shipping\Packing;
 final class BoxForm
 {
     /**
+     * Shipping module codes are filenames without the extension, so they are lowercase
+     * and limited to what a PHP class name allows. The length matches the column.
+     */
+    public const CARRIER_CODE_PATTERN = '/^[a-z0-9_]{1,32}$/';
+
+    /**
      * Normalize a submission and collect any problems.
      *
      * Errors are returned as language-constant names with substitution values, so the
@@ -104,7 +110,14 @@ final class BoxForm
             $scope = BoxType::SCOPE_BOTH;
         }
 
-        $carrier = trim((string)($input['carrier_code'] ?? ''));
+        $carrier = self::normalizeCarrierCode((string)($input['carrier_code'] ?? ''));
+        if ($carrier !== '' && !preg_match(self::CARRIER_CODE_PATTERN, $carrier)) {
+            // The value is matched against the code a shipping module reports, which is
+            // its filename without the extension, so anything outside that character set
+            // can never match and would silently disable the box.
+            $errors[] = ['key' => 'ERROR_CARRIER_CODE_INVALID', 'args' => [$carrier]];
+            $carrier = '';
+        }
 
         return [
             'values' => [
@@ -167,6 +180,46 @@ final class BoxForm
             'width' => $grow($interior->width),
             'height' => $grow($interior->height),
         ];
+    }
+
+    /**
+     * The carrier codes a store can restrict a box to, for the admin dropdown.
+     *
+     * The authoritative list is the installed-modules cache, which is a
+     * semicolon-separated list of module filenames and includes plugin-provided
+     * modules. A free-text field here is a typo waiting to happen, because a code that
+     * does not match is not an error - the box is simply never offered.
+     *
+     * $current is kept in the list even when it is not installed, so editing a box
+     * whose carrier module has been uninstalled or renamed does not silently drop the
+     * restriction on the next save.
+     *
+     * @param string $installedList value of MODULE_SHIPPING_INSTALLED
+     * @return string[] sorted codes, no blank entry
+     */
+    public static function carrierCodes(string $installedList, ?string $current = null): array
+    {
+        $codes = [];
+        foreach (explode(';', $installedList) as $file) {
+            $code = self::normalizeCarrierCode(pathinfo(trim($file), PATHINFO_FILENAME));
+            if ($code !== '' && preg_match(self::CARRIER_CODE_PATTERN, $code)) {
+                $codes[$code] = $code;
+            }
+        }
+
+        $current = self::normalizeCarrierCode((string)$current);
+        if ($current !== '') {
+            $codes[$current] = $current;
+        }
+
+        ksort($codes);
+
+        return array_values($codes);
+    }
+
+    private static function normalizeCarrierCode(string $value): string
+    {
+        return strtolower(trim($value));
     }
 
     private static function toFloat(mixed $value): float

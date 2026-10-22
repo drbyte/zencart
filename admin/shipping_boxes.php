@@ -194,7 +194,17 @@ $unit_label = static fn (string $units): string => zen_output_string_protected($
               </tr>
               <tr>
                 <td><?php echo ENTRY_CARRIER_CODE; ?></td>
-                <td><?php echo zen_draw_input_field('carrier_code', $form_values['carrier_code'] ?? '', 'maxlength="32"'); ?>
+                <td><?php
+                    /**
+                     * A dropdown of the store's own installed shipping modules, because the
+                     * value has to match the code a module reports and a typo here fails
+                     * silently: the box is simply never offered.
+                     */
+                    $carrier_options = [['id' => '', 'text' => TEXT_CARRIER_ANY]];
+                    foreach (BoxForm::carrierCodes(zen_config('MODULE_SHIPPING_INSTALLED', ''), $form_values['carrier_code'] ?? null) as $carrier_code) {
+                        $carrier_options[] = ['id' => $carrier_code, 'text' => $carrier_code];
+                    }
+                    echo zen_draw_pull_down_menu('carrier_code', $carrier_options, $form_values['carrier_code'] ?? ''); ?>
                     <br><small><?php echo ENTRY_CARRIER_CODE_INFO; ?></small></td>
               </tr>
               <tr>
@@ -225,6 +235,7 @@ $unit_label = static fn (string $units): string => zen_output_string_protected($
                   <th class="dataTableHeadingContent"><?php echo TABLE_HEADING_EXTERIOR; ?></th>
                   <th class="dataTableHeadingContent text-right"><?php echo TABLE_HEADING_MAX_PAYLOAD; ?></th>
                   <th class="dataTableHeadingContent"><?php echo TABLE_HEADING_SCOPE; ?></th>
+                  <th class="dataTableHeadingContent"><?php echo TABLE_HEADING_CARRIER; ?></th>
                   <th class="dataTableHeadingContent"><?php echo TABLE_HEADING_ENABLED; ?></th>
                   <th class="dataTableHeadingContent text-right"><?php echo TABLE_HEADING_ACTION; ?></th>
                 </tr>
@@ -247,6 +258,9 @@ $unit_label = static fn (string $units): string => zen_output_string_protected($
                             : TEXT_UNLIMITED; ?>
                     </td>
                     <td class="dataTableContent"><?php echo zen_output_string_protected($box['destination_scope']); ?></td>
+                    <td class="dataTableContent"><?php echo ($box['carrier_code'] ?? '') === ''
+                        ? TEXT_CARRIER_ANY
+                        : zen_output_string_protected((string)$box['carrier_code']); ?></td>
                     <td class="dataTableContent">
                       <a href="<?php echo zen_href_link(FILENAME_SHIPPING_BOXES, 'action=setstatus&bID=' . $id); ?>">
                           <?php echo (int)$box['is_enabled'] === 1 ? TEXT_STATUS_ENABLED : TEXT_STATUS_DISABLED; ?>

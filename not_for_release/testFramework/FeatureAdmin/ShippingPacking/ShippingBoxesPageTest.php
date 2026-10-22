@@ -125,6 +125,19 @@ class ShippingBoxesPageTest extends zcInProcessFeatureTestCaseAdmin
         $this->submitNewBoxForm($overrides);
     }
 
+    /**
+     * The dropdown reads the installed-modules cache, so the test owns that value for
+     * the duration of the test rather than depending on whatever the seeder installed.
+     */
+    private function setInstalledShippingModules(string $list): void
+    {
+        $this->db()->Execute(
+            "UPDATE " . TABLE_CONFIGURATION . "
+                SET configuration_value = '" . $list . "'
+              WHERE configuration_key = 'MODULE_SHIPPING_INSTALLED'"
+        );
+    }
+
     public function testThePageLoadsAndSaysSoWhenNoBoxesExist(): void
     {
         $this->db()->Execute('DELETE FROM ' . TABLE_SHIPPING_BOXES);
@@ -133,6 +146,57 @@ class ShippingBoxesPageTest extends zcInProcessFeatureTestCaseAdmin
 
         $page->assertSee('Shipping Boxes');
         $page->assertSee('No boxes defined yet');
+    }
+
+    /**
+     * The carrier field is a dropdown of the store's own shipping modules, not free
+     * text, because a code that does not match disables the box silently. "Any carrier"
+     * has to be the blank default: the generic box an owner uses for UPS, FedEx and
+     * USPS alike is the common case.
+     */
+    public function testTheCarrierFieldOffersInstalledModulesAndAnyCarrier(): void
+    {
+        $this->setInstalledShippingModules('flat.php;usps.php');
+
+        $page = $this->visitAdminCommand('shipping_boxes&action=new')->assertOk();
+
+        $page->assertSee('Restrict to carrier');
+        $page->assertSee('Any carrier');
+        $page->assertSee('name="carrier_code"');
+        $page->assertSee('<option value="usps"');
+        $page->assertSee('<option value="flat"');
+        $this->assertStringNotContainsString(
+            '<option value="canadapost"',
+            $page->content,
+            'Only the store\'s own installed modules belong in the list.'
+        );
+    }
+
+    /**
+     * Restricting a box to one carrier has to survive the round trip, and a box left on
+     * "Any carrier" has to store NULL rather than an empty string, or BoxType would
+     * treat the empty string as a restriction that matches nothing.
+     */
+    public function testRestrictingABoxToOneCarrierStoresTheCode(): void
+    {
+        $this->setInstalledShippingModules('flat.php;usps.php');
+
+        $this->createBox(['carrier_code' => 'usps']);
+
+        $box = $this->storedBox(self::CODE);
+        $this->assertNotNull($box);
+        $this->assertSame('usps', $box['carrier_code']);
+
+        $page = $this->visitAdminCommand('shipping_boxes&action=edit&bID=' . (int)$box['box_id'])->assertOk();
+        $page->assertSee('<option value="usps" selected');
+    }
+
+    public function testTheListingNamesTheCarrierRestrictionOrSaysAnyCarrier(): void
+    {
+        $this->createBox();
+
+        $page = $this->visitAdminCommand('shipping_boxes')->assertOk();
+        $page->assertSee('Any carrier');
     }
 
     public function testTheNewBoxFormRenders(): void
