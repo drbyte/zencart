@@ -290,6 +290,38 @@ class MissingDimensionsReportPageTest extends zcInProcessFeatureTestCaseAdmin
         $this->assertStringNotContainsString($this->productName(10), $page->content);
     }
 
+    /**
+     * The product name is a link to where the dimensions are actually entered. It used
+     * to point at categories.php with action=new_product, which that page stopped
+     * handling when product editing moved to product.php - so the link rendered an
+     * empty page and the report's one call to action went nowhere.
+     */
+    public function testTheProductLinkOpensTheProductEditor(): void
+    {
+        $this->mutateProduct(2, ['products_length' => 'NULL']);
+
+        $page = $this->report();
+
+        $this->assertMatchesRegularExpression(
+            '/cmd=product(&amp;|&)action=new_product[^"]*pID=2\b/',
+            $page->content,
+            'The link has to reach the editor that actually has the dimension fields.'
+        );
+
+        // Following it is the point: a link that resolves to a page rendering nothing
+        // is what this test exists to catch, and only visiting it can tell.
+        $this->assertSame(1, preg_match('/href="([^"]*cmd=product[^"]*pID=2\b[^"]*)"/', $page->content, $href));
+        $target = html_entity_decode($href[1]);
+        $query = parse_url($target, PHP_URL_QUERY) ?? '';
+
+        parse_str($query, $params);
+        $command = (string)($params['cmd'] ?? '');
+        unset($params['cmd']);
+
+        $editor = $this->visitAdminCommand($command . '&' . http_build_query($params))->assertOk();
+        $editor->assertSee('products_length');
+    }
+
     public function testGiftCertificatesAreNotListed(): void
     {
         $this->mutateProduct(6, ['products_model' => "'GIFT100'", 'products_length' => 'NULL']);

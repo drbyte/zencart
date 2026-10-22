@@ -27,7 +27,6 @@ $define = [
     'TEXT_ATTRIBUTE_NOTE' => 'A product whose size comes from its attributes still needs base dimensions here. Packing uses the product\'s own length, width and height; attribute dimensions are not yet supported, so without base measurements such a product forces weight-only quoting for the whole cart.',
     'TEXT_EXCLUDED_NOTE' => '%s further product(s) have no dimensions and are not listed, because they can never be shipped as a parcel: gift certificates, virtual products, products marked always-free-shipping, and products whose every option is a download. These do not need measuring and do not affect your quotes.',
     'TEXT_NONE_MISSING' => 'Every shippable product has dimensions. Nothing to do here.',
-    'TEXT_EDIT_PRODUCT' => 'Edit',
     'TEXT_SHOW_DISABLED' => 'Include disabled products',
 ];
 

@@ -112,7 +112,7 @@ $axisLabels = [
                 <tr class="dataTableRow">
                   <td class="dataTableContent right"><?php echo $productId; ?></td>
                   <td class="dataTableContent">
-                    <a href="<?php echo zen_href_link(FILENAME_CATEGORIES, 'action=new_product&pID=' . $productId . '&cPath=' . zen_get_generated_category_path_rev(zen_get_products_category_id($productId))); ?>">
+                    <a href="<?php echo zen_href_link(FILENAME_PRODUCT, 'action=new_product&cPath=' . zen_get_product_path($productId) . '&pID=' . $productId . '&product_type=' . zen_get_products_type($productId)); ?>">
                         <?php echo zen_output_string_protected($row['products_name'] ?? ''); ?>
                     </a>
                   </td>
