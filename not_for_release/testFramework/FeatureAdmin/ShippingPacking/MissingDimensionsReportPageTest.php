@@ -32,6 +32,9 @@ class MissingDimensionsReportPageTest extends zcInProcessFeatureTestCaseAdmin
     /** @var array<int, array<string, mixed>> */
     private array $originals = [];
 
+    /** @var int[] products_attributes_id values this test created */
+    private array $attributeIds = [];
+
     public function setUp(): void
     {
         parent::setUp();
@@ -59,6 +62,13 @@ class MissingDimensionsReportPageTest extends zcInProcessFeatureTestCaseAdmin
             );
         }
         $this->originals = [];
+
+        if ($this->attributeIds !== []) {
+            $ids = implode(',', array_map('intval', $this->attributeIds));
+            $db->Execute('DELETE FROM ' . TABLE_PRODUCTS_ATTRIBUTES . ' WHERE products_attributes_id IN (' . $ids . ')');
+            $db->Execute('DELETE FROM ' . TABLE_PRODUCTS_ATTRIBUTES_DOWNLOAD . ' WHERE products_attributes_id IN (' . $ids . ')');
+            $this->attributeIds = [];
+        }
 
         parent::tearDown();
     }
@@ -111,6 +121,37 @@ class MissingDimensionsReportPageTest extends zcInProcessFeatureTestCaseAdmin
         $db->Execute(
             'UPDATE ' . TABLE_PRODUCTS . ' SET ' . implode(', ', $assignments) . ' WHERE products_id = ' . $id
         );
+    }
+
+    /**
+     * Give a product one option group, some of whose values carry a download.
+     *
+     * The report only joins products_attributes to products_attributes_download, so the
+     * option and value rows themselves are not needed to exercise the rule.
+     */
+    private function addAttributeGroup(int $productId, int $optionId, int $values, int $withDownload): void
+    {
+        $db = $this->db();
+        $next = (int)$db->Execute(
+            'SELECT MAX(products_attributes_id) AS top FROM ' . TABLE_PRODUCTS_ATTRIBUTES
+        )->fields['top'] + 1000;
+
+        for ($i = 0; $i < $values; $i++) {
+            $attributeId = $next + $i;
+            $this->attributeIds[] = $attributeId;
+            $db->Execute(
+                'INSERT INTO ' . TABLE_PRODUCTS_ATTRIBUTES . '
+                    (products_attributes_id, products_id, options_id, options_values_id, options_values_price)
+                 VALUES (' . $attributeId . ', ' . $productId . ', ' . $optionId . ', ' . (900 + $i) . ", 0)"
+            );
+            if ($i < $withDownload) {
+                $db->Execute(
+                    'INSERT INTO ' . TABLE_PRODUCTS_ATTRIBUTES_DOWNLOAD . '
+                        (products_attributes_id, products_attributes_filename)
+                     VALUES (' . $attributeId . ", 'probe.zip')"
+                );
+            }
+        }
     }
 
     private function productName(int $id): string
@@ -187,6 +228,66 @@ class MissingDimensionsReportPageTest extends zcInProcessFeatureTestCaseAdmin
         $this->mutateProduct(5, ['product_is_always_free_shipping' => "'2'", 'products_length' => 'NULL']);
 
         $this->report()->assertSee($this->productName(5));
+    }
+
+    /**
+     * A download that hangs off an attribute makes the line virtual to core, but only
+     * when the customer selects that attribute - which a report cannot know. It is
+     * certain only when a whole option group is downloads, because then every choice
+     * carries one.
+     */
+    public function testAProductWhoseEveryOptionIsADownloadIsNotListed(): void
+    {
+        $this->mutateProduct(7, ['products_length' => 'NULL']);
+        $this->addAttributeGroup(7, 701, 2, 2);
+
+        $this->assertStringNotContainsString(
+            $this->productName(7),
+            $this->report()->content,
+            'Every purchase of this product carries a download, so it never becomes a parcel.'
+        );
+    }
+
+    /**
+     * The other half of the same rule, and the one that matters: a book sold as either
+     * a printed copy or an ebook still has to be measured.
+     */
+    public function testAProductWithOnePhysicalOptionIsStillListed(): void
+    {
+        $this->mutateProduct(8, ['products_length' => 'NULL']);
+        $this->addAttributeGroup(8, 801, 3, 2);
+
+        $this->report()->assertSee($this->productName(8));
+    }
+
+    /**
+     * 2 means "special, requires shipping", so it ships even carrying a download.
+     */
+    public function testADownloadProductMarkedAsRequiringShippingIsStillListed(): void
+    {
+        $this->mutateProduct(9, ['products_length' => 'NULL', 'product_is_always_free_shipping' => "'2'"]);
+        $this->addAttributeGroup(9, 901, 2, 2);
+
+        $this->report()->assertSee($this->productName(9));
+    }
+
+    /**
+     * The exclusions are counted on the page rather than being silent, so an owner can
+     * see that the report chose to hide something instead of wondering whether it
+     * missed it. A count and not a toggle: these products must never be measured.
+     */
+    public function testExcludedProductsAreCountedRatherThanHidden(): void
+    {
+        $this->mutateProduct(10, ['products_virtual' => "'1'", 'products_length' => 'NULL']);
+
+        $page = $this->report();
+
+        $this->assertMatchesRegularExpression(
+            '/\d+ further product\(s\) have no dimensions and are not listed/',
+            $page->content,
+            'An exclusion the owner cannot see reads as a report that missed something.'
+        );
+        $this->assertStringNotContainsString($this->productName(10), $page->content);
     }
 
     public function testGiftCertificatesAreNotListed(): void

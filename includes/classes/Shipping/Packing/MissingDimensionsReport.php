@@ -28,6 +28,9 @@ final class MissingDimensionsReport
      * always-free-shipping products and GIFT models never become parcels, so they are
      * not work. Note that product_is_always_free_shipping = 2 means "special, requires
      * shipping" and therefore *is* included; only 1 is excluded.
+     *
+     * Products whose downloads hang off attributes are handled one step further down,
+     * where the certainty of the exclusion is explained.
      */
     public static function sql(int $languageId): string
     {
@@ -42,16 +45,73 @@ final class MissingDimensionsReport
                 LEFT JOIN " . $description . " pd
                   ON pd.products_id = p.products_id AND pd.language_id = " . $languageId . "
                 LEFT JOIN " . $types . " pt ON pt.type_id = p.products_type
-                WHERE (p.products_virtual IS NULL OR p.products_virtual <> 1)
-                  -- A product type that cannot be added to a cart can never reach the
-                  -- packer, so it is not work for the store to do.
-                  AND (pt.allow_add_to_cart IS NULL OR pt.allow_add_to_cart <> 'N')
-                  AND (p.product_is_always_free_shipping IS NULL OR p.product_is_always_free_shipping <> 1)
-                  AND (p.products_model IS NULL OR p.products_model NOT LIKE 'GIFT%')
+                WHERE NOT " . self::neverReachesPackerPredicate() . "
                   AND (p.products_length IS NULL OR p.products_length <= 0
                        OR p.products_width IS NULL OR p.products_width <= 0
                        OR p.products_height IS NULL OR p.products_height <= 0)
                 ORDER BY p.products_status DESC, pd.products_name";
+    }
+
+    /**
+     * Products that can never become a parcel, as one SQL expression.
+     *
+     * Named and shared because the report filters these out while the page reports how
+     * many it hid; two copies of the rule would drift, and a drifting copy here means
+     * either invented work or silently missing work.
+     *
+     * Every term is wrapped so the expression is never NULL: the report negates it, and
+     * NOT NULL would quietly drop rows whose columns are unset.
+     *
+     * - products_virtual: never ships, by definition.
+     * - allow_add_to_cart = 'N': the type cannot reach a cart, so it cannot reach the packer.
+     * - product_is_always_free_shipping = 1: never quoted. 2 means "special, requires
+     *   shipping" and is deliberately not excluded.
+     * - GIFT models: core treats these as gift certificates.
+     * - An option group whose every value carries a download. A download that hangs off
+     *   an attribute only makes the line virtual when the customer selects it, which a
+     *   report cannot know; it is certain only when every choice in a group is a
+     *   download. A group with one physical choice keeps the product listed, because
+     *   choosing it produces a parcel that has to be measured.
+     */
+    private static function neverReachesPackerPredicate(): string
+    {
+        $attributes = PackingSchema::tableName('products_attributes');
+        $downloads = PackingSchema::tableName('products_attributes_download');
+
+        return "(COALESCE(p.products_virtual, 0) = 1
+                 OR COALESCE(pt.allow_add_to_cart, 'Y') = 'N'
+                 OR COALESCE(p.product_is_always_free_shipping, 0) = 1
+                 OR COALESCE(p.products_model, '') LIKE 'GIFT%'
+                 OR (COALESCE(p.product_is_always_free_shipping, 0) <> 2
+                     AND EXISTS (
+                         SELECT 1
+                         FROM " . $attributes . " pa
+                         LEFT JOIN " . $downloads . " pad USING (products_attributes_id)
+                         WHERE pa.products_id = p.products_id
+                         GROUP BY pa.options_id
+                         HAVING COUNT(*) = COUNT(pad.products_attributes_id)
+                     )))";
+    }
+
+    /**
+     * How many unmeasured products the report is deliberately not showing.
+     *
+     * Shown as a footnote so the exclusions are legible rather than silent. It is a
+     * count and not a listing: these products must never be measured, so offering them
+     * as rows would be offering work that should not be done.
+     */
+    public static function excludedCountSql(): string
+    {
+        $products = PackingSchema::tableName('products');
+        $types = PackingSchema::tableName('product_types');
+
+        return "SELECT COUNT(*) AS total
+                FROM " . $products . " p
+                LEFT JOIN " . $types . " pt ON pt.type_id = p.products_type
+                WHERE " . self::neverReachesPackerPredicate() . "
+                  AND (p.products_length IS NULL OR p.products_length <= 0
+                       OR p.products_width IS NULL OR p.products_width <= 0
+                       OR p.products_height IS NULL OR p.products_height <= 0)";
     }
 
     /**

@@ -25,6 +25,10 @@ while (!$reportResult->EOF) {
 
 $summary = MissingDimensionsReport::summarize($rows);
 
+// Products that are unmeasured but can never ship. Counted, not listed: measuring them
+// is not deferred work, it is work that must not be done, so rows would invite it.
+$excludedCount = (int)$db->Execute(MissingDimensionsReport::excludedCountSql())->fields['total'];
+
 if (!$showDisabled) {
     $rows = array_values(array_filter($rows, static fn (array $row): bool => (int)$row['products_status'] === 1));
 }
@@ -78,6 +82,10 @@ $axisLabels = [
           </div>
 
           <p class="text-muted"><?php echo TEXT_ATTRIBUTE_NOTE; ?></p>
+
+            <?php if ($excludedCount > 0) { ?>
+            <p class="text-muted"><?php echo sprintf(TEXT_EXCLUDED_NOTE, $excludedCount); ?></p>
+            <?php } ?>
 
           <p>
             <a href="<?php echo zen_href_link(FILENAME_SHIPPING_DIMENSIONS_REPORT, 'show_disabled=' . ($showDisabled ? '0' : '1')); ?>">

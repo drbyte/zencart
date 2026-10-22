@@ -127,32 +127,68 @@ class MissingDimensionsReportTest extends PackingTestCase
     /**
      * The query must exclude exactly what packing ignores, and must not exclude
      * always-free-shipping value 2, which still ships.
+     *
+     * These assertions are on the shape of the SQL, which is weak evidence on its own -
+     * what the query actually returns is pinned by MissingDimensionsReportPageTest
+     * against a real database. They are kept because they name each exclusion, so
+     * dropping one is a failure here rather than a quiet change in behavior.
      */
     public function testQueryExcludesOnlyWhatPackingIgnores(): void
     {
         $sql = MissingDimensionsReport::sql(1);
 
         $this->assertStringContainsString('products_virtual', $sql);
-        $this->assertStringContainsString("NOT LIKE 'GIFT%'", $sql);
+        $this->assertStringContainsString("LIKE 'GIFT%'", $sql);
+        $this->assertStringContainsString('product_types', $sql);
+        $this->assertStringContainsString('allow_add_to_cart', $sql);
         $this->assertMatchesRegularExpression(
-            '/product_is_always_free_shipping\s*<>\s*1/',
+            '/product_is_always_free_shipping,\s*0\)\s*=\s*1/',
             $sql,
             'Only value 1 is excluded: 2 means "special, requires shipping" and still needs measuring.'
+        );
+        $this->assertMatchesRegularExpression(
+            '/product_is_always_free_shipping,\s*0\)\s*<>\s*2/',
+            $sql,
+            'A download product marked as requiring shipping still has to be measured.'
         );
         $this->assertMatchesRegularExpression('/language_id\s*=\s*1/', $sql);
         $this->assertStringContainsString('ORDER BY', $sql);
     }
 
     /**
-     * A product type that cannot be added to a cart can never reach the packer, so it
-     * is not work for the store to do.
+     * A download that hangs off an attribute only makes a line virtual when that
+     * attribute is selected, so the report excludes a product only when an entire
+     * option group is downloads.
      */
-    public function testQueryExcludesTypesThatCannotBeAddedToACart(): void
+    public function testQueryExcludesProductsWhoseEveryOptionIsADownload(): void
     {
         $sql = MissingDimensionsReport::sql(1);
 
-        $this->assertStringContainsString('product_types', $sql);
-        $this->assertMatchesRegularExpression("/allow_add_to_cart\s*<>\s*'N'/", $sql);
+        $this->assertStringContainsString('products_attributes_download', $sql);
+        $this->assertMatchesRegularExpression('/GROUP BY\s+pa\.options_id/', $sql);
+        $this->assertMatchesRegularExpression(
+            '/HAVING\s+COUNT\(\*\)\s*=\s*COUNT\(pad\.products_attributes_id\)/',
+            $sql,
+            'An option group counts as virtual only when every one of its values is a download.'
+        );
+    }
+
+    /**
+     * The report hides these rows and the page counts them, so both have to be reading
+     * the same rule. One expression, used twice.
+     */
+    public function testTheExcludedCountUsesTheSameRuleAsTheReport(): void
+    {
+        $listed = MissingDimensionsReport::sql(1);
+        $excluded = MissingDimensionsReport::excludedCountSql();
+
+        foreach (['products_virtual', 'allow_add_to_cart', "LIKE 'GIFT%'", 'products_attributes_download'] as $term) {
+            $this->assertStringContainsString($term, $listed);
+            $this->assertStringContainsString($term, $excluded, 'The count must hide exactly what the report hides.');
+        }
+
+        $this->assertStringContainsString('COUNT(*) AS total', $excluded);
+        $this->assertStringNotContainsString('ORDER BY', $excluded, 'A count has nothing to order.');
     }
 
     public function testQueryLooksForAnyMissingAxisNotAllThree(): void
