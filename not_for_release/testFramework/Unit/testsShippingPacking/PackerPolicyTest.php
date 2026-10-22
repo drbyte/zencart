@@ -138,6 +138,28 @@ class PackerPolicyTest extends PackingTestCase
         $this->assertSame(1, $rightCarrier->packageCount());
     }
 
+    /**
+     * A box with no carrier of its own is generic stock and must be offered to every
+     * carrier, including one quoting under its own code. Only carrier-owned packaging -
+     * a flat-rate envelope - is restricted.
+     */
+    public function testBoxesWithoutACarrierAreOfferedToEveryCarrier(): void
+    {
+        $items = [$this->item(4, 4, 4, 1.0, 'thing')];
+        $boxes = [$this->box('GENERIC', 12, 12, 12)];
+        $packer = new FirstFitDecreasingPacker();
+
+        foreach ([null, 'usps', 'ups'] as $carrier) {
+            $plan = $packer->pack($items, $boxes, $this->context(['carrierCode' => $carrier]));
+            $this->assertSame(
+                1,
+                $plan->packageCount(),
+                'A generic box must be usable when quoting ' . ($carrier ?? 'no specific carrier') . '.'
+            );
+            $this->assertCount(0, $plan->unpackable);
+        }
+    }
+
     public function testInternationalScopeExcludesDomesticOnlyBoxes(): void
     {
         $items = [$this->item(4, 4, 4, 1.0, 'thing')];

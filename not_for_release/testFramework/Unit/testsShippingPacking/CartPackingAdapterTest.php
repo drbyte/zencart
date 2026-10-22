@@ -69,12 +69,19 @@ class CartPackingAdapterTest extends PackingTestCase
      */
     public function testFractionalQuantityRoundsUp(): void
     {
-        $request = (new CartPackingAdapter())->fromCartProducts(
-            [$this->line(['quantity' => 2.5])],
-            $this->context()
-        );
+        // 2.2 rather than 2.5, so the assertion distinguishes rounding up from rounding
+        // to nearest: both give 3 for 2.5, but only ceil() gives 3 for 2.2. Reserving
+        // space for a whole unit is the conservative direction.
+        // Pairs, not a keyed array: PHP casts float array keys to int, so 2.2 would
+        // silently become 2.
+        foreach ([[2.2, 3], [2.5, 3], [2.8, 3], [0.1, 1], [1.0, 1]] as [$quantity, $expected]) {
+            $request = (new CartPackingAdapter())->fromCartProducts(
+                [$this->line(['quantity' => (float)$quantity])],
+                $this->context()
+            );
 
-        $this->assertSame(3, $request->unitCount());
+            $this->assertSame($expected, $request->unitCount(), 'Quantity ' . $quantity);
+        }
     }
 
     public function testZeroOrNegativeQuantityIsExcluded(): void
@@ -241,6 +248,109 @@ class CartPackingAdapterTest extends PackingTestCase
         $this->assertTrue($request->exceedsUnitCeiling);
         $this->assertFalse($request->isPackable());
         $this->assertSame([], $request->items, 'A declined cart must not leave a partial expansion behind.');
+    }
+
+    /**
+     * A cart line may be missing keys outright, not merely empty - older plugins build
+     * their own product arrays, and get_products() has gained fields over time. Absent
+     * must behave like empty and must not raise a notice on the quote path.
+     */
+    public function testCartLinesWithAbsentKeysStillConvert(): void
+    {
+        $line = [
+            'id' => '9',
+            'quantity' => 1.0,
+            'length' => '4.0000',
+            'width' => '4.0000',
+            'height' => '4.0000',
+        ];
+
+        $request = (new CartPackingAdapter())->fromCartProducts([$line], $this->context());
+
+        $this->assertSame(1, $request->unitCount());
+        $item = $request->items[0];
+        $this->assertSame(0.0, $item->weight->value, 'An absent weight is zero, not a notice.');
+        $this->assertSame(Units::INCHES, $item->dimensions->units);
+        $this->assertSame(Units::POUNDS, $item->weight->units);
+        $this->assertFalse($item->shipsInOwnBox);
+        $this->assertSame('9', $item->lineKey);
+    }
+
+    /**
+     * An absent id must not be mistaken for a product, and an absent model must not be
+     * mistaken for a gift certificate.
+     */
+    public function testAbsentIdAndModelAreHandledWithoutMisclassifying(): void
+    {
+        $request = (new CartPackingAdapter())->fromCartProducts(
+            [['quantity' => 1.0, 'length' => '2', 'width' => '2', 'height' => '2']],
+            $this->context()
+        );
+
+        $this->assertSame(1, $request->unitCount(), 'A line with no model is not a gift certificate.');
+        $this->assertSame('', $request->items[0]->uprid);
+    }
+
+    /**
+     * An absent quantity means there is nothing to pack, and must be excluded rather
+     * than silently packed as one unit.
+     */
+    public function testAbsentQuantityIsExcluded(): void
+    {
+        $request = (new CartPackingAdapter())->fromCartProducts(
+            [['id' => '1', 'length' => '2', 'width' => '2', 'height' => '2']],
+            $this->context()
+        );
+
+        $this->assertSame(0, $request->unitCount());
+        $this->assertSame(1, $request->excludedLineCount);
+    }
+
+    /**
+     * A non-shipping line must skip only itself.
+     *
+     * This guards a latent bug rather than a hypothetical one: turning the skip into an
+     * early exit would make one virtual product or gift certificate silently drop every
+     * line after it from the parcel plan, and the store would simply be under-quoted.
+     * The single-line exclusion tests above cannot see the difference.
+     */
+    public function testAnExcludedLineDoesNotStopLaterLinesFromPacking(): void
+    {
+        $products = [
+            $this->line(['id' => 'virtual', 'quantity' => 1.0, 'products_virtual' => 1]),
+            $this->line(['id' => 'gift', 'quantity' => 1.0, 'model' => 'GIFT50']),
+            $this->line(['id' => 'freeship', 'quantity' => 1.0, 'product_is_always_free_shipping' => 1]),
+            $this->line(['id' => 'real-1', 'quantity' => 2.0]),
+            $this->line(['id' => 'real-2', 'quantity' => 1.0]),
+        ];
+
+        $request = (new CartPackingAdapter())->fromCartProducts($products, $this->context());
+
+        $this->assertSame(3, $request->excludedLineCount);
+        $this->assertSame(3, $request->unitCount(), 'Both shippable lines must survive the exclusions.');
+
+        $uprids = array_values(array_unique(array_map(static fn ($i) => $i->uprid, $request->items)));
+        sort($uprids);
+        $this->assertSame(['real-1', 'real-2'], $uprids);
+    }
+
+    /**
+     * The declared total accumulates across lines. Replacing the accumulation with an
+     * assignment would leave only the last line's quantity, which in turn would make
+     * the packer's sampling guard scale its extrapolation from the wrong total.
+     */
+    public function testDeclaredUnitTotalAccumulatesAcrossLines(): void
+    {
+        $products = [
+            $this->line(['id' => 'a', 'quantity' => 2.0]),
+            $this->line(['id' => 'b', 'quantity' => 3.0]),
+            $this->line(['id' => 'c', 'quantity' => 4.0]),
+        ];
+
+        $request = (new CartPackingAdapter())->fromCartProducts($products, $this->context());
+
+        $this->assertSame(9, $request->declaredUnitTotal);
+        $this->assertSame(9, $request->unitCount());
     }
 
     public function testUnitsOfTheSameLineShareALineKey(): void

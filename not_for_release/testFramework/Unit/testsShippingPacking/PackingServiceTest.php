@@ -50,6 +50,38 @@ class PackingServiceTest extends PackingTestCase
         ], $overrides);
     }
 
+    /**
+     * The query must select every column the mapper reads, from the prefixed table,
+     * restricted to enabled rows.
+     *
+     * Asserted because the mapper and the SELECT are edited independently: dropping a
+     * column from the query leaves hydrate() silently coalescing it to a default, which
+     * would show up as every box losing its payload cap or its exterior rather than as
+     * an error.
+     */
+    public function testEnabledQuerySelectsEveryColumnTheMapperReads(): void
+    {
+        $db = $this->recordingDatabase([$this->boxRow()]);
+
+        BoxRepository::loadEnabled($db);
+
+        $sql = $db->lastSql;
+        foreach ([
+            'box_id', 'box_code', 'box_title',
+            'interior_length', 'interior_width', 'interior_height',
+            'exterior_length', 'exterior_width', 'exterior_height',
+            'interior_margin', 'dim_units', 'tare_weight', 'max_payload_weight',
+            'weight_units', 'destination_scope', 'carrier_code', 'last_modified',
+        ] as $column) {
+            $this->assertStringContainsString($column, $sql, 'Query omits ' . $column);
+        }
+
+        $this->assertStringContainsString('shipping_boxes', $sql);
+        $this->assertStringContainsString('is_enabled = 1', $sql, 'Disabled boxes must not be loaded.');
+        $this->assertMatchesRegularExpression('/FROM\s+\S*shipping_boxes/i', $sql);
+        $this->assertMatchesRegularExpression('/ORDER BY\s+sort_order/i', $sql);
+    }
+
     public function testCatalogRowsHydrateIntoBoxTypes(): void
     {
         $boxes = BoxRepository::hydrate([$this->boxRow()]);
@@ -97,6 +129,88 @@ class PackingServiceTest extends PackingTestCase
         $this->assertSame(8.0, $boxes[0]->exterior->height);
     }
 
+    /**
+     * A row may arrive with keys entirely absent, not merely empty - a hand-written
+     * INSERT, a plugin installer, or a SELECT that predates a column. Absent must
+     * behave like empty, and must not raise a notice.
+     *
+     * Mutation testing found this: the earlier test used an empty string for the
+     * exterior, so the "absent key" half of `?? 0` was never exercised and a mutant
+     * changing that default survived.
+     */
+    public function testRowsWithEntirelyAbsentKeysStillHydrate(): void
+    {
+        $row = $this->boxRow();
+        unset(
+            $row['box_id'],
+            $row['exterior_length'],
+            $row['exterior_width'],
+            $row['exterior_height'],
+            $row['dim_units'],
+            $row['weight_units'],
+            $row['tare_weight'],
+            $row['max_payload_weight'],
+            $row['interior_margin'],
+            $row['carrier_code'],
+            $row['destination_scope'],
+            $row['box_title']
+        );
+
+        $boxes = BoxRepository::hydrate([$row]);
+
+        $this->assertCount(1, $boxes);
+        $box = $boxes[0];
+        $this->assertNull($box->boxId);
+        $this->assertSame('', $box->title);
+        $this->assertSame(Units::INCHES, $box->interior->units);
+        $this->assertSame(Units::POUNDS, $box->tare->units);
+        $this->assertSame(0.0, $box->tare->value);
+        $this->assertNull($box->maxPayload);
+        $this->assertNull($box->carrierCode);
+        $this->assertSame(BoxType::SCOPE_BOTH, $box->destinationScope);
+        // Exterior falls back to the interior rather than to zero, so the parcel still
+        // reports a carrier-facing size.
+        $this->assertSame(12.0, $box->exterior->length);
+        $this->assertSame(10.0, $box->exterior->width);
+        $this->assertSame(8.0, $box->exterior->height);
+    }
+
+    /**
+     * An explicit per-box margin of zero means "this box needs no allowance" and must
+     * survive as 0.0 rather than being flattened to null, which would silently hand
+     * the box back to the store-wide percentage.
+     */
+    public function testExplicitZeroInteriorMarginIsKeptAndSuppressesThePercentage(): void
+    {
+        $box = BoxRepository::hydrate([$this->boxRow(['interior_margin' => '0.0000'])])[0];
+
+        $this->assertSame(0.0, $box->interiorMargin);
+        $this->assertSame(12.0, $box->usableInterior(50.0)->length, 'The zero override wins over the percentage.');
+    }
+
+    public function testNegativeOrBlankInteriorMarginFallsBackToThePercentage(): void
+    {
+        foreach (['-1.0000', '', null] as $value) {
+            $box = BoxRepository::hydrate([$this->boxRow(['interior_margin' => $value])])[0];
+            $this->assertNull($box->interiorMargin, 'An unusable margin must not be honoured.');
+            $this->assertSame(11.4, round($box->usableInterior(5.0)->length, 10));
+        }
+    }
+
+    /**
+     * Unit strings come from a free-text column, so an unrecognised value must fall
+     * back rather than throw on the quote path.
+     */
+    public function testUnknownUnitColumnsFallBackToStoreDefaults(): void
+    {
+        $box = BoxRepository::hydrate([
+            $this->boxRow(['dim_units' => 'cubits', 'weight_units' => 'stones']),
+        ])[0];
+
+        $this->assertSame(Units::INCHES, $box->interior->units);
+        $this->assertSame(Units::POUNDS, $box->tare->units);
+    }
+
     public function testZeroOrMissingPayloadBecomesUnlimited(): void
     {
         $this->assertNull(BoxRepository::hydrate([$this->boxRow(['max_payload_weight' => '0'])])[0]->maxPayload);
@@ -109,6 +223,94 @@ class PackingServiceTest extends PackingTestCase
         $boxes = BoxRepository::hydrate([$this->boxRow(['destination_scope' => 'martian'])]);
 
         $this->assertSame(BoxType::SCOPE_BOTH, $boxes[0]->destinationScope);
+    }
+
+    /**
+     * A box with no payload cap must survive unit normalization.
+     *
+     * PackingService normalizes every box to the context's units on each quote, and
+     * max_payload_weight is nullable and commonly empty. Without the null-safe call in
+     * BoxType::withUnits() this is a TypeError on the quote path for any store whose
+     * boxes have no cap - which is most of them. Nothing else exercised that
+     * combination, so the guard was one careless cleanup away from a crash.
+     */
+    public function testBoxWithoutAPayloadCapSurvivesUnitNormalization(): void
+    {
+        $box = BoxRepository::hydrate([$this->boxRow(['max_payload_weight' => null])])[0];
+        $this->assertNull($box->maxPayload);
+
+        $converted = $box->withUnits(Units::CENTIMETERS, Units::KILOGRAMS);
+
+        $this->assertNull($converted->maxPayload);
+        $this->assertEqualsWithDelta(30.48, $converted->interior->length, 0.01);
+
+        // And through the full service path, which is where it would actually bite.
+        $plan = (new PackingService())->planFor(
+            [$this->cartLine()],
+            [$box],
+            PackingSettings::contextFrom(['SHIPPING_DIMENSION_UNITS' => Units::CENTIMETERS], catalogRevision: 'r1')
+        );
+        $this->assertSame(1, $plan->packageCount());
+    }
+
+    /**
+     * The catalog revision must move when a box is edited, not only when one is added
+     * or removed. Editing is the common case and the reason the marker exists: an admin
+     * changing a box's dimensions must not leave a stale plan memoized in a shopper's
+     * session.
+     */
+    public function testRevisionMarkerChangesWhenABoxIsEditedWithoutChangingTheCount(): void
+    {
+        $before = $this->revisionFor([$this->boxRow(['last_modified' => '2026-10-20 09:00:00'])]);
+        $after = $this->revisionFor([$this->boxRow(['last_modified' => '2026-10-21 14:30:00'])]);
+
+        $this->assertNotSame($before, $after, 'An edited box must change the revision.');
+    }
+
+    public function testRevisionMarkerIsStableForUnchangedRows(): void
+    {
+        $rows = [$this->boxRow(['box_code' => 'A']), $this->boxRow(['box_code' => 'B'])];
+
+        $this->assertSame($this->revisionFor($rows), $this->revisionFor($rows));
+    }
+
+    /**
+     * A row missing an interior dimension entirely is malformed and must be skipped,
+     * exactly as a zero one is. Coalescing an absent interior to any positive default
+     * would invent a box the store does not own.
+     */
+    public function testRowsWithAbsentInteriorDimensionsAreSkipped(): void
+    {
+        foreach (['interior_length', 'interior_width', 'interior_height'] as $column) {
+            $row = $this->boxRow();
+            unset($row[$column]);
+
+            $this->assertSame(
+                [],
+                BoxRepository::hydrate([$row]),
+                'A row with no ' . $column . ' is not a box.'
+            );
+        }
+    }
+
+    public function testEveryValidRowIsHydrated(): void
+    {
+        $boxes = BoxRepository::hydrate([
+            $this->boxRow(['box_code' => 'A']),
+            $this->boxRow(['box_code' => 'B']),
+            $this->boxRow(['box_code' => 'C']),
+        ]);
+
+        $this->assertCount(3, $boxes);
+        $this->assertSame(['A', 'B', 'C'], array_map(static fn ($b) => $b->code, $boxes));
+    }
+
+    public function testDestinationScopeIsTrimmedAndCaseInsensitive(): void
+    {
+        $this->assertSame(
+            BoxType::SCOPE_INTERNATIONAL,
+            BoxRepository::hydrate([$this->boxRow(['destination_scope' => '  International  '])])[0]->destinationScope
+        );
     }
 
     public function testSettingsBuildAContextWithDocumentedDefaults(): void
@@ -351,13 +553,26 @@ class PackingServiceTest extends PackingTestCase
 
     private function revisionFor(array $rows): string
     {
-        $db = new class($rows) {
+        return BoxRepository::loadEnabled($this->recordingDatabase($rows))['revision'];
+    }
+
+    /**
+     * Minimal queryFactory stand-in that serves fixed rows and remembers the statement,
+     * so the mapping and the query can both be asserted without a database.
+     */
+    private function recordingDatabase(array $rows): object
+    {
+        return new class($rows) {
+            public string $lastSql = '';
+
             public function __construct(private array $rows)
             {
             }
 
             public function Execute(string $sql): object
             {
+                $this->lastSql = $sql;
+
                 return new class($this->rows) {
                     public array $fields = [];
                     public bool $EOF = false;
@@ -382,7 +597,5 @@ class PackingServiceTest extends PackingTestCase
                 };
             }
         };
-
-        return BoxRepository::loadEnabled($db)['revision'];
     }
 }
