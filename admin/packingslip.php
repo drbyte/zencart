@@ -173,7 +173,7 @@ if (empty($order->info)) {
         </tr>
       </table>
       <div><?php echo zen_draw_separator('pixel_trans.gif', '', '10'); ?></div>
-      <?php if (\Zencart\Shipping\Packing\OrderPackages::needsCaveat($packing_packages)) { ?>
+      <?php if (\Zencart\Shipping\Packing\OrderPackages::needsCaveat($packing_packages, $order->products)) { ?>
         <p class="alert alert-warning"><?php echo TEXT_PACKINGSLIP_PARCELS_CAVEAT; ?></p>
       <?php } ?>
       <table class="table table-striped">

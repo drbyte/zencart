@@ -239,6 +239,147 @@ class OrderPackagesTest extends PackingTestCase
         $this->assertTrue(OrderPackages::needsCaveat($stale), 'A stale plan may not match the order.');
     }
 
+    /**
+     * A plan matching its order is not stale.
+     */
+    public function testAMatchingPlanIsNotOutOfDate(): void
+    {
+        $packages = OrderPackages::fromRows(
+            [$this->packageRow(['orders_packages_id' => 10])],
+            [
+                ['orders_packages_id' => 10, 'orders_products_id' => 101, 'products_quantity' => 3],
+                ['orders_packages_id' => 10, 'orders_products_id' => 102, 'products_quantity' => 1],
+            ]
+        );
+
+        $this->assertFalse(OrderPackages::isOutOfDate($packages, $this->orderProducts()));
+        $this->assertFalse(OrderPackages::needsCaveat($packages, $this->orderProducts()));
+    }
+
+    /**
+     * A quantity edited in admin leaves the plan describing a different order, which is
+     * exactly what the caveat is for.
+     */
+    public function testAnEditedQuantityMakesThePlanOutOfDate(): void
+    {
+        $packages = OrderPackages::fromRows(
+            [$this->packageRow(['orders_packages_id' => 10])],
+            [
+                ['orders_packages_id' => 10, 'orders_products_id' => 101, 'products_quantity' => 3],
+                ['orders_packages_id' => 10, 'orders_products_id' => 102, 'products_quantity' => 1],
+            ]
+        );
+
+        $edited = $this->orderProducts();
+        $edited[0]['qty'] = 5;
+
+        $this->assertSame(['changed' => [101], 'missing' => [], 'extra' => []], OrderPackages::quantityMismatches($packages, $edited));
+        $this->assertTrue(OrderPackages::isOutOfDate($packages, $edited));
+        $this->assertTrue(OrderPackages::needsCaveat($packages, $edited));
+    }
+
+    public function testALineAddedAfterPackingIsReportedMissing(): void
+    {
+        $packages = OrderPackages::fromRows(
+            [$this->packageRow(['orders_packages_id' => 10])],
+            [['orders_packages_id' => 10, 'orders_products_id' => 101, 'products_quantity' => 3]]
+        );
+
+        $mismatches = OrderPackages::quantityMismatches($packages, $this->orderProducts());
+
+        $this->assertSame([102], $mismatches['missing'], 'The Gadget line was never packed.');
+        $this->assertTrue(OrderPackages::isOutOfDate($packages, $this->orderProducts()));
+    }
+
+    /**
+     * A line deleted in admin leaves the plan referencing goods the order no longer has.
+     */
+    public function testALineDeletedAfterPackingIsReportedExtra(): void
+    {
+        $packages = OrderPackages::fromRows(
+            [$this->packageRow(['orders_packages_id' => 10])],
+            [
+                ['orders_packages_id' => 10, 'orders_products_id' => 101, 'products_quantity' => 3],
+                ['orders_packages_id' => 10, 'orders_products_id' => 999, 'products_quantity' => 2],
+            ]
+        );
+
+        $mismatches = OrderPackages::quantityMismatches($packages, $this->orderProducts());
+
+        $this->assertSame([999], $mismatches['extra']);
+        $this->assertTrue(OrderPackages::isOutOfDate($packages, $this->orderProducts()));
+    }
+
+    /**
+     * Quantities split across parcels must be summed before comparing, or every
+     * multi-parcel order would look stale.
+     */
+    public function testSplitQuantitiesAreSummedBeforeComparing(): void
+    {
+        $packages = OrderPackages::fromRows(
+            [
+                $this->packageRow(['orders_packages_id' => 10, 'package_sequence' => 1]),
+                $this->packageRow(['orders_packages_id' => 11, 'package_sequence' => 2]),
+            ],
+            [
+                ['orders_packages_id' => 10, 'orders_products_id' => 101, 'products_quantity' => 2],
+                ['orders_packages_id' => 11, 'orders_products_id' => 101, 'products_quantity' => 1],
+                ['orders_packages_id' => 10, 'orders_products_id' => 102, 'products_quantity' => 1],
+            ]
+        );
+
+        $this->assertFalse(
+            OrderPackages::isOutOfDate($packages, $this->orderProducts()),
+            'Three units across two parcels still match a line of three.'
+        );
+    }
+
+    public function testAnOrderWithNoRecordedPlanIsNotConsideredStale(): void
+    {
+        $this->assertFalse(OrderPackages::isOutOfDate([], $this->orderProducts()));
+        $this->assertFalse(OrderPackages::needsCaveat([], $this->orderProducts()));
+    }
+
+    /**
+     * The stored flag still wins on its own, for tooling that says so explicitly at the
+     * moment it edits a line.
+     */
+    public function testTheStoredFlagAloneRaisesTheCaveat(): void
+    {
+        $packages = OrderPackages::fromRows(
+            [$this->packageRow(['plan_is_stale' => 1, 'orders_packages_id' => 10])],
+            [['orders_packages_id' => 10, 'orders_products_id' => 101, 'products_quantity' => 3]]
+        );
+
+        $this->assertTrue(OrderPackages::needsCaveat($packages), 'No order needed when the flag is set.');
+    }
+
+    public function testMarkStaleUpdatesOnlyTheGivenOrder(): void
+    {
+        $captured = [];
+        $db = new class($captured) {
+            public function __construct(public array &$captured)
+            {
+            }
+
+            public function Execute(string $sql): object
+            {
+                $this->captured[] = $sql;
+
+                return new class {
+                    public bool $EOF = true;
+                    public array $fields = [];
+                };
+            }
+        };
+
+        OrderPackages::markStale($db, 4242);
+        OrderPackages::markStale($db, 0);
+
+        $this->assertCount(1, $captured, 'An invalid order id must not issue a statement.');
+        $this->assertMatchesRegularExpression('/SET plan_is_stale = 1 WHERE orders_id = 4242/', $captured[0]);
+    }
+
     public function testQueriesAreScopedToTheOrder(): void
     {
         $this->assertMatchesRegularExpression('/WHERE orders_id = 4242/', OrderPackages::packagesSql(4242));

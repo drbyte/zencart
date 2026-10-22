@@ -173,11 +173,90 @@ final class OrderPackages
     }
 
     /**
+     * Order lines whose recorded parcel quantities no longer match the order.
+     *
+     * Derived rather than flagged, deliberately. The plan goes stale when an order's
+     * lines are edited, and line editing happens only in admin tooling that core does
+     * not ship - so an approach that waited for an edit hook would simply never fire
+     * for most stores. Comparing what was recorded against what the order now says
+     * needs no cooperation from anyone.
+     *
+     * Core's own NOTIFY_ADMIN_ORDERS_UPDATE_ORDER_START is deliberately not used for
+     * this: core admin edits an order's status and comments, not its lines, so marking
+     * the plan stale there would raise the caveat on nearly every order ever touched
+     * and teach staff to ignore it.
+     *
+     * @param array<int, array<string, mixed>> $packages from fromRows()
+     * @param array<int, array<string, mixed>> $orderProducts $order->products
+     * @return array{changed: int[], missing: int[], extra: int[]} order line ids
+     */
+    public static function quantityMismatches(array $packages, array $orderProducts): array
+    {
+        $recorded = [];
+        foreach ($packages as $package) {
+            foreach ($package['quantities'] as $lineId => $quantity) {
+                $recorded[(int)$lineId] = ($recorded[(int)$lineId] ?? 0.0) + (float)$quantity;
+            }
+        }
+
+        $ordered = [];
+        foreach ($orderProducts as $product) {
+            $lineId = (int)($product['orders_products_id'] ?? 0);
+            if ($lineId > 0) {
+                $ordered[$lineId] = (float)($product['qty'] ?? 0);
+            }
+        }
+
+        $changed = [];
+        $extra = [];
+        foreach ($recorded as $lineId => $quantity) {
+            if (!isset($ordered[$lineId])) {
+                // Recorded against a line the order no longer has: deleted in admin.
+                $extra[] = $lineId;
+                continue;
+            }
+            if (abs($ordered[$lineId] - $quantity) > 0.0001) {
+                $changed[] = $lineId;
+            }
+        }
+
+        $missing = [];
+        foreach ($ordered as $lineId => $quantity) {
+            if (!isset($recorded[$lineId])) {
+                $missing[] = $lineId;
+            }
+        }
+
+        sort($changed);
+        sort($missing);
+        sort($extra);
+
+        return ['changed' => $changed, 'missing' => $missing, 'extra' => $extra];
+    }
+
+    /**
+     * True when the recorded breakdown no longer describes this order.
+     *
+     * @param array<int, array<string, mixed>> $packages
+     * @param array<int, array<string, mixed>> $orderProducts
+     */
+    public static function isOutOfDate(array $packages, array $orderProducts): bool
+    {
+        if ($packages === []) {
+            return false;
+        }
+
+        $mismatches = self::quantityMismatches($packages, $orderProducts);
+
+        return $mismatches['changed'] !== [] || $mismatches['missing'] !== [] || $mismatches['extra'] !== [];
+    }
+
+    /**
      * Whether the recorded breakdown should be shown with a caveat.
      *
      * @param array<int, array<string, mixed>> $packages
      */
-    public static function needsCaveat(array $packages): bool
+    public static function needsCaveat(array $packages, array $orderProducts = []): bool
     {
         foreach ($packages as $package) {
             if ($package['plan_is_stale'] || $package['plan_origin'] !== PackingPersistence::ORIGIN_QUOTED) {
@@ -185,6 +264,30 @@ final class OrderPackages
             }
         }
 
-        return false;
+        // The stored flag is authoritative when tooling sets it, but it cannot be
+        // relied on, so the comparison runs too whenever the order is to hand.
+        return $orderProducts !== [] && self::isOutOfDate($packages, $orderProducts);
+    }
+
+    /**
+     * Mark an order's recorded plan as no longer trustworthy.
+     *
+     * Public so order-editing tooling can say so authoritatively at the moment it
+     * changes a line, which is cheaper and more certain than any comparison. Nothing in
+     * core calls it: core admin does not edit order lines. The flag is never cleared
+     * here - a stale plan is replaced by re-packing, not by being declared fresh.
+     *
+     * @param object $db queryFactory
+     */
+    public static function markStale(object $db, int $ordersId): void
+    {
+        if ($ordersId <= 0) {
+            return;
+        }
+
+        $db->Execute(
+            'UPDATE ' . PackingSchema::tableName('orders_packages')
+            . ' SET plan_is_stale = 1 WHERE orders_id = ' . $ordersId
+        );
     }
 }
