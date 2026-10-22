@@ -209,7 +209,8 @@ $unit_label = static fn (string $units): string => zen_output_string_protected($
               </tr>
               <tr>
                 <td><?php echo ENTRY_SORT_ORDER; ?></td>
-                <td><?php echo zen_draw_input_field('sort_order', $form_values['sort_order'] ?? '0', 'size="4"'); ?></td>
+                <td><?php echo zen_draw_input_field('sort_order', $form_values['sort_order'] ?? '0', 'size="4"'); ?>
+                    <br><small><?php echo ENTRY_SORT_ORDER_INFO; ?></small></td>
               </tr>
               <tr>
                 <td><?php echo ENTRY_ENABLED; ?></td>

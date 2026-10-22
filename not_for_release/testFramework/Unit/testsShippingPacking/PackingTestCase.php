@@ -65,7 +65,8 @@ abstract class PackingTestCase extends TestCase
         float $tare = 0.0,
         float $wallThickness = 0.0,
         string $scope = BoxType::SCOPE_BOTH,
-        ?string $carrierCode = null
+        ?string $carrierCode = null,
+        int $sortOrder = 0
     ): BoxType {
         return new BoxType(
             null,
@@ -76,7 +77,9 @@ abstract class PackingTestCase extends TestCase
             new Weight($tare),
             $maxPayload === null ? null : new Weight($maxPayload),
             $scope,
-            $carrierCode
+            $carrierCode,
+            null,
+            $sortOrder
         );
     }
 

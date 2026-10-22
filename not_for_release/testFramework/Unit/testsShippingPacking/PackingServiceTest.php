@@ -46,6 +46,7 @@ class PackingServiceTest extends PackingTestCase
             'weight_units' => 'pounds',
             'destination_scope' => 'both',
             'carrier_code' => null,
+            'sort_order' => '10',
             'last_modified' => '2026-10-20 09:00:00',
         ], $overrides);
     }
@@ -71,7 +72,7 @@ class PackingServiceTest extends PackingTestCase
             'interior_length', 'interior_width', 'interior_height',
             'exterior_length', 'exterior_width', 'exterior_height',
             'interior_margin', 'dim_units', 'tare_weight', 'max_payload_weight',
-            'weight_units', 'destination_scope', 'carrier_code', 'last_modified',
+            'weight_units', 'destination_scope', 'carrier_code', 'sort_order', 'last_modified',
         ] as $column) {
             $this->assertStringContainsString($column, $sql, 'Query omits ' . $column);
         }
@@ -97,6 +98,7 @@ class PackingServiceTest extends PackingTestCase
         $this->assertSame(50.0, $box->maxPayload->value);
         $this->assertNull($box->carrierCode);
         $this->assertSame(BoxType::SCOPE_BOTH, $box->destinationScope);
+        $this->assertSame(10, $box->sortOrder, 'Preference is carried as a value, not as array position.');
     }
 
     /**
@@ -461,6 +463,27 @@ class PackingServiceTest extends PackingTestCase
         $service->planFor($cart, $boxes, PackingSettings::contextFrom([], catalogRevision: '1:2026-10-20 09:00:00'));
         $service->planFor($cart, $boxes, PackingSettings::contextFrom([], catalogRevision: '1:2026-10-21 11:00:00'));
 
+        $this->assertSame(2, $service->packCallCount());
+    }
+
+    /**
+     * Sort order reached the packer's tie-break, so it has to reach the plan hash too.
+     *
+     * PlanHasher sorts the box signatures, which makes array order deliberately
+     * invisible to the hash. Without the value inside BoxType::signature(), two
+     * catalogs that differ only in which equally-sized box the store prefers would hash
+     * identically and the second quote would be served the first one's plan.
+     */
+    public function testChangingOnlyTheBoxPreferenceIsNotServedFromTheMemo(): void
+    {
+        $service = new PackingService();
+        $context = PackingSettings::contextFrom([], catalogRevision: 'r1');
+        $cart = [$this->cartLine()];
+
+        $first = $service->planFor($cart, BoxRepository::hydrate([$this->boxRow(['sort_order' => '10'])]), $context);
+        $second = $service->planFor($cart, BoxRepository::hydrate([$this->boxRow(['sort_order' => '20'])]), $context);
+
+        $this->assertNotSame($first->planHash, $second->planHash, 'Preference must be part of the plan identity.');
         $this->assertSame(2, $service->packCallCount());
     }
 

@@ -32,7 +32,7 @@ final class BoxRepository
                        interior_length, interior_width, interior_height,
                        exterior_length, exterior_width, exterior_height,
                        interior_margin, dim_units, tare_weight, max_payload_weight,
-                       weight_units, destination_scope, carrier_code, last_modified
+                       weight_units, destination_scope, carrier_code, sort_order, last_modified
                 FROM " . PackingSchema::tableName('shipping_boxes') . "
                 WHERE is_enabled = 1
                 ORDER BY sort_order, box_code";
@@ -108,7 +108,10 @@ final class BoxRepository
                     : new Weight((float)$maxPayload, $weightUnits),
                 self::scope($row['destination_scope'] ?? null),
                 ($row['carrier_code'] ?? '') === '' ? null : (string)$row['carrier_code'],
-                ($margin === null || $margin === '' || (float)$margin < 0.0) ? null : (float)$margin
+                ($margin === null || $margin === '' || (float)$margin < 0.0) ? null : (float)$margin,
+                // Carried as a value rather than relied on as array order: the packer
+                // re-sorts the boxes it is given, and PlanHasher sorts their signatures.
+                (int)($row['sort_order'] ?? 0)
             );
         }
 

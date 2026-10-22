@@ -38,7 +38,8 @@ $define = [
     'ENTRY_DESTINATION_SCOPE' => 'Destinations',
     'ENTRY_CARRIER_CODE' => 'Restrict to carrier',
     'ENTRY_CARRIER_CODE_INFO' => 'Boxes you buy yourself work with every carrier, including the generic box you use for UPS, FedEx and USPS alike. Leave those on <strong>Any carrier</strong>.<br><br><strong>Carrier-supplied packaging</strong> is the exception: a USPS flat-rate envelope may not be used when shipping with anyone else. Name that carrier here and the box is only ever offered when quoting it.',
-    'ENTRY_SORT_ORDER' => 'List order',
+    'ENTRY_SORT_ORDER' => 'Sort order',
+    'ENTRY_SORT_ORDER_INFO' => 'Orders this list, and decides which box is chosen when two boxes have the same usable interior &mdash; lowest number wins. It cannot make a larger box be chosen over a smaller one that the items fit: packing always takes the smallest box that fits, or your quotes would be higher than they need to be.',
     'TEXT_CARRIER_ANY' => 'Any carrier',
     'ENTRY_ENABLED' => 'Enabled',
 

@@ -151,11 +151,22 @@ final class FirstFitDecreasingPacker implements PackerInterface
             }
         }
 
-        // Smallest usable interior first, so "the smallest box that fits" is a scan.
-        // The code tie-break keeps two identically-sized boxes in a stable order.
+        /**
+         * Smallest usable interior first, so "the smallest box that fits" is a scan.
+         * Volume decides, never the store's own ordering: a preference that could put a
+         * large box ahead of a small one would overpay on every order that fits the
+         * small one, which is the whole reason for quoting on dimensions.
+         *
+         * Between boxes of equal usable interior the store's sort order decides - that
+         * is the one case where "I stock two 12x12x12 boxes and prefer the cheaper
+         * one" is expressible without distorting the choice. Code remains the final
+         * tie-break so two boxes with the same size and the same sort order still pack
+         * identically on every request.
+         */
         usort($available, static function (BoxType $a, BoxType $b) use ($context): int {
             return $a->usableInterior($context->interiorMarginPercent)->volume()
                 <=> $b->usableInterior($context->interiorMarginPercent)->volume()
+                ?: $a->sortOrder <=> $b->sortOrder
                 ?: strcmp($a->code, $b->code);
         });
 

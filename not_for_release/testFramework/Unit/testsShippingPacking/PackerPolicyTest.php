@@ -125,6 +125,48 @@ class PackerPolicyTest extends PackingTestCase
         $this->assertCount(1, $plan->unpackable, 'A box over the girth limit is not a usable box.');
     }
 
+    /**
+     * Sort order is the store's preference between boxes it considers interchangeable,
+     * and that is all it is: it decides a tie, never the choice itself.
+     */
+    public function testSortOrderDecidesBetweenTwoBoxesOfTheSameSize(): void
+    {
+        $items = [$this->item(4, 4, 4, 1.0, 'thing')];
+        $packer = new FirstFitDecreasingPacker();
+
+        $cheapFirst = $packer->pack(
+            $items,
+            [$this->box('PREMIUM', 12, 12, 12, sortOrder: 20), $this->box('CHEAP', 12, 12, 12, sortOrder: 10)],
+            $this->context()
+        );
+        $premiumFirst = $packer->pack(
+            $items,
+            [$this->box('PREMIUM', 12, 12, 12, sortOrder: 10), $this->box('CHEAP', 12, 12, 12, sortOrder: 20)],
+            $this->context()
+        );
+
+        $this->assertSame('CHEAP', $cheapFirst->packages[0]->boxType->code);
+        $this->assertSame(
+            'PREMIUM',
+            $premiumFirst->packages[0]->boxType->code,
+            'Reversing the preference must reverse the choice, not just the listing.'
+        );
+    }
+
+    /**
+     * The guard against the obvious misreading of the field: a store owner who puts a
+     * big box at the top of the list must not be charged for it on small orders.
+     */
+    public function testSortOrderCannotPutALargerBoxAheadOfOneThatFits(): void
+    {
+        $items = [$this->item(4, 4, 4, 1.0, 'thing')];
+        $boxes = [$this->box('HUGE', 24, 24, 24, sortOrder: 1), $this->box('SMALL', 6, 6, 6, sortOrder: 99)];
+
+        $plan = (new FirstFitDecreasingPacker())->pack($items, $boxes, $this->context());
+
+        $this->assertSame('SMALL', $plan->packages[0]->boxType->code, 'Volume decides, not preference.');
+    }
+
     public function testCarrierSpecificBoxesAreOnlyOfferedToThatCarrier(): void
     {
         $items = [$this->item(4, 4, 4, 1.0, 'thing')];

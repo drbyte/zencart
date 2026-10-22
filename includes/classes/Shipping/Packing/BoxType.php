@@ -28,7 +28,8 @@ final readonly class BoxType
         public ?Weight $maxPayload = null,
         public string $destinationScope = self::SCOPE_BOTH,
         public ?string $carrierCode = null,
-        public ?float $interiorMargin = null
+        public ?float $interiorMargin = null,
+        public int $sortOrder = 0
     ) {
     }
 
@@ -82,10 +83,20 @@ final readonly class BoxType
             $this->maxPayload?->withUnits($weightUnits),
             $this->destinationScope,
             $this->carrierCode,
-            $this->interiorMargin
+            $this->interiorMargin,
+            $this->sortOrder
         );
     }
 
+    /**
+     * Identity for memoization and plan hashing.
+     *
+     * $sortOrder belongs here because it decides which of two equally-sized boxes the
+     * packer picks, and PlanHasher deliberately sorts box signatures so that the order
+     * of the array cannot affect the hash. A preference carried only by array position
+     * would therefore be invisible to the hash, and two catalogs differing only in
+     * preference would share a plan.
+     */
     public function signature(): string
     {
         return implode('|', [
@@ -97,6 +108,7 @@ final readonly class BoxType
             $this->destinationScope,
             (string)$this->carrierCode,
             $this->interiorMargin === null ? 'null' : sprintf('%.4F', $this->interiorMargin),
+            (string)$this->sortOrder,
         ]);
     }
 }
