@@ -42,6 +42,7 @@ abstract class PackingTestCase extends TestCase
             'TABLE_SHIPPING_BOXES' => 'shipping_boxes',
             'TABLE_ORDERS_PACKAGES' => 'orders_packages',
             'TABLE_ORDERS_PACKAGES_PRODUCTS' => 'orders_packages_products',
+            'TABLE_ORDERS_PRODUCTS' => 'orders_products',
             'TABLE_PRODUCTS' => 'products',
             'TABLE_PRODUCTS_DESCRIPTION' => 'products_description',
             'TABLE_PRODUCT_TYPES' => 'product_types',

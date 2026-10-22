@@ -164,6 +164,7 @@ define('FILENAME_SERVER_INFO', 'server_info');
 define('FILENAME_SHIPPING', 'shippinginfo');
 define('FILENAME_SHIPPING_BOXES', 'shipping_boxes');
 define('FILENAME_SHIPPING_DIMENSIONS_REPORT', 'shipping_dimensions_report');
+define('FILENAME_SHIPPING_PLAN_EXPLAINER', 'shipping_plan_explainer');
 define('FILENAME_SHOPPING_CART', 'shopping_cart');
 define('FILENAME_SITE_MAP', 'site_map');
 define('FILENAME_SPECIALS', 'specials');

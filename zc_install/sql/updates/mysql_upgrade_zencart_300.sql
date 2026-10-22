@@ -128,6 +128,14 @@ VALUES ('reportShippingDimensions', 'BOX_REPORTS_SHIPPING_DIMENSIONS', 'FILENAME
 DELETE FROM admin_pages_to_profiles WHERE page_key = 'reportShippingDimensions';
 INSERT INTO admin_pages_to_profiles (profile_id, page_key) VALUES (1, 'reportShippingDimensions');
 
+# Tools menu entry for the plan explainer: it answers "why did this cart quote
+# three parcels?", which is a diagnostic question, not a report to work through.
+DELETE FROM admin_pages WHERE page_key = 'shippingPlanExplainer';
+INSERT INTO admin_pages (page_key, language_key, main_page, page_params, menu_key, display_on_menu, sort_order)
+VALUES ('shippingPlanExplainer', 'BOX_TOOLS_SHIPPING_PLAN_EXPLAINER', 'FILENAME_SHIPPING_PLAN_EXPLAINER', '', 'tools', 'Y', 8);
+DELETE FROM admin_pages_to_profiles WHERE page_key = 'shippingPlanExplainer';
+INSERT INTO admin_pages_to_profiles (profile_id, page_key) VALUES (1, 'shippingPlanExplainer');
+
 # Dimensional shipping packing settings. Disabled by default: an existing store's
 # quotes must not change until the owner defines boxes and turns this on.
 DELETE FROM configuration WHERE configuration_key IN ('SHIPPING_PACKING_ENABLED', 'SHIPPING_PACKING_INTERIOR_MARGIN_PCT', 'SHIPPING_PACKING_MISSING_DIMS_POLICY', 'SHIPPING_PACKING_DEFAULT_BOX_CODE', 'SHIPPING_PACKING_MAX_UNITS', 'SHIPPING_PACKING_MAX_GIRTH', 'SHIPPING_PACKING_PERSIST');
