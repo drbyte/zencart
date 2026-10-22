@@ -66,7 +66,7 @@ if ($submitted && $quantities === [] && $messages === []) {
 
 if ($quantities !== []) {
     $rows = [];
-    $productsSql = PlanExplainer::productsSql(array_keys($quantities));
+    $productsSql = PlanExplainer::productsSql(array_keys($quantities), (int)$_SESSION['languages_id']);
     if ($productsSql !== '') {
         $result = $db->Execute($productsSql);
         while (!$result->EOF) {

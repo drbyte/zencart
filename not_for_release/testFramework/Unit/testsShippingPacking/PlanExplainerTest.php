@@ -58,6 +58,12 @@ class PlanExplainerTest extends PackingTestCase
             $this->assertStringContainsString($column, $sql, 'Query omits ' . $column);
         }
         $this->assertStringContainsString('IN (4,9)', $sql, 'Ids are deduplicated and cast.');
+        $this->assertStringContainsString('language_id = 1', $sql, 'The default language applies when none is given.');
+        $this->assertStringContainsString(
+            'language_id = 3',
+            PlanExplainer::productsSql([4], 3),
+            'The admin looking at the page decides which language names the products.'
+        );
     }
 
     public function testOrderLinesQueryIsScopedToTheOrder(): void

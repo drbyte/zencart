@@ -111,7 +111,10 @@ class zcObserverShippingPackingOrderDisplay extends base
             // English backs up a translation that has not been made yet, which is what
             // the rest of the admin does; a missing file must not print constant names.
             foreach ([(string)($_SESSION['language'] ?? 'english'), 'english'] as $language) {
-                $file = $directory . $language . '/lang.shipping_packing_orders.php';
+                // basename() because a path is being built from a variable. The session
+                // language is set by core from the languages table and is not reachable
+                // by a visitor, so this is belt and braces rather than a fix.
+                $file = $directory . basename($language) . '/lang.shipping_packing_orders.php';
                 if (is_file($file)) {
                     $this->strings = (array)(require $file);
                     break;

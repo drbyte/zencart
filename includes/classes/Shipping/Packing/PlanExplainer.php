@@ -39,9 +39,14 @@ final class PlanExplainer
     /**
      * The product data the packer needs, for the given ids.
      *
+     * The language id is passed in rather than read from a global, as
+     * MissingDimensionsReport::sql() does: the admin's language lives in the session,
+     * and a class reaching for $GLOBALS would both guess wrong there and stop being
+     * testable without a bootstrap.
+     *
      * @param int[] $productIds
      */
-    public static function productsSql(array $productIds): string
+    public static function productsSql(array $productIds, int $languageId = 1): string
     {
         $ids = [];
         foreach ($productIds as $productId) {
@@ -62,7 +67,7 @@ final class PlanExplainer
                        p.products_orientation_lock, pd.products_name
                 FROM " . TABLE_PRODUCTS . " p
                 LEFT JOIN " . TABLE_PRODUCTS_DESCRIPTION . " pd
-                  ON pd.products_id = p.products_id AND pd.language_id = " . (int)($GLOBALS['languages_id'] ?? 1) . "
+                  ON pd.products_id = p.products_id AND pd.language_id = " . $languageId . "
                 WHERE p.products_id IN (" . implode(',', $ids) . ")";
     }
 
