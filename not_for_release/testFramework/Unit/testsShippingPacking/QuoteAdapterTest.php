@@ -118,6 +118,47 @@ class QuoteAdapterTest extends PackingTestCase
         $this->assertGreaterThan($plan->packageCount(), QuoteAdapter::packageCount($plan, 1));
     }
 
+    /**
+     * The invariant a module depends on: summing parcels() must rate the same number of
+     * parcels that packageCount() says to bill for.
+     *
+     * Without it, an approximated plan hands out one sampled parcel while reporting a
+     * count of eight, so a module following the documented "rate each parcel and sum"
+     * path under-quotes a large cart by the sampling factor - the one direction the
+     * packing contract forbids.
+     */
+    public function testParcelsAlwaysMatchTheBillableCount(): void
+    {
+        $items = $this->units(400, $this->item(2, 2, 2, 0.1, 'widget'));
+        $plan = (new FirstFitDecreasingPacker())->pack(
+            $items,
+            [$this->box('M', 10, 10, 10)],
+            new PackingContext(interiorMarginPercent: 0.0, maxUnits: 50, catalogRevision: 'test')
+        );
+
+        $this->assertTrue($plan->approximated);
+        $this->assertGreaterThan($plan->packageCount(), $plan->quotablePackageCount());
+
+        $parcels = QuoteAdapter::parcels($plan);
+
+        $this->assertCount(
+            QuoteAdapter::packageCount($plan, 1),
+            $parcels,
+            'Rating every entry must cover the whole shipment.'
+        );
+        $this->assertSame(range(1, count($parcels)), array_column($parcels, 'sequence'));
+        $this->assertSame([count($parcels)], array_unique(array_column($parcels, 'count')));
+    }
+
+    public function testAnOrdinaryPlanIsNotReplicated(): void
+    {
+        $plan = $this->twoParcelPlan();
+
+        $this->assertFalse($plan->approximated);
+        $this->assertCount(2, QuoteAdapter::parcels($plan));
+        $this->assertSame(2, QuoteAdapter::packageCount($plan, 9));
+    }
+
     public function testParcelsReportTheBoxExteriorNotTheContents(): void
     {
         $parcels = QuoteAdapter::parcels($this->twoParcelPlan());

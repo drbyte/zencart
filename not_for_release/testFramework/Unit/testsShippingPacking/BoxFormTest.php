@@ -237,6 +237,53 @@ class BoxFormTest extends TestCase
         $this->assertSame(10.5, $result['values']['interior_width']);
     }
 
+    /**
+     * Every null must be rendered for zen_db_perform, or the insert fails silently.
+     *
+     * This is not an edge case: a box with no payload limit, no carrier restriction and
+     * no per-box margin is the ordinary first box a store creates. Before this, saving
+     * one stored nothing and the page redirected as though it had worked.
+     */
+    public function testDatabaseRowRendersEveryNullForTheWriter(): void
+    {
+        $values = BoxForm::validate($this->input([
+            'max_payload_weight' => '',
+            'carrier_code' => '',
+            'interior_margin' => '',
+        ]))['values'];
+
+        $this->assertNull($values['max_payload_weight'], 'Null is the right domain meaning.');
+
+        $row = BoxForm::toDatabaseRow($values);
+
+        $this->assertSame('null', $row['max_payload_weight']);
+        $this->assertSame('null', $row['carrier_code']);
+        $this->assertSame('null', $row['interior_margin']);
+        $this->assertSame('now()', $row['last_modified']);
+
+        foreach ($row as $column => $value) {
+            $this->assertNotNull($value, 'Column ' . $column . ' must never reach zen_db_perform as PHP null.');
+        }
+    }
+
+    public function testDatabaseRowPreservesPresentValuesIncludingZero(): void
+    {
+        $values = BoxForm::validate($this->input(['tare_weight' => '0', 'interior_margin' => '0']))['values'];
+
+        $row = BoxForm::toDatabaseRow($values);
+
+        $this->assertSame(0.0, $row['tare_weight'], 'A real zero is not a null.');
+        $this->assertSame(0.0, $row['interior_margin'], 'An explicit zero margin is meaningful.');
+        $this->assertSame('M12', $row['box_code']);
+    }
+
+    public function testDatabaseRowCanSkipTheTimestamp(): void
+    {
+        $row = BoxForm::toDatabaseRow(BoxForm::validate($this->input())['values'], false);
+
+        $this->assertArrayNotHasKey('last_modified', $row);
+    }
+
     public function testExteriorFromThicknessGrowsEachAxisByTwiceTheWall(): void
     {
         $exterior = BoxForm::exteriorFromThickness(new Dimensions(12.0, 10.0, 8.0), 0.25);

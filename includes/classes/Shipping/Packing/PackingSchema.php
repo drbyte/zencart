@@ -110,6 +110,34 @@ final class PackingSchema
     }
 
     /**
+     * Render a value for zen_db_perform, turning a PHP null into SQL NULL.
+     *
+     * zen_db_perform() casts every value with (string), so PHP null arrives as an empty
+     * string and is quoted - and '' into an int or decimal column is rejected under
+     * strict SQL mode, silently failing the whole insert. Only the literal 'null'
+     * reaches the query as SQL NULL.
+     *
+     * Lives here, used by every writer in this subsystem, because fixing it once per
+     * caller is how it got missed the second time: a box with no payload cap and a
+     * parcel with no catalog box are both the common case, not the exotic one.
+     */
+    public static function dbValue(mixed $value): mixed
+    {
+        return $value === null ? 'null' : $value;
+    }
+
+    /**
+     * Render every value of a row for zen_db_perform.
+     *
+     * @param array<string, mixed> $row
+     * @return array<string, mixed>
+     */
+    public static function dbRow(array $row): array
+    {
+        return array_map(static fn (mixed $value): mixed => self::dbValue($value), $row);
+    }
+
+    /**
      * Resolve a logical table name to its runtime name, honouring the configured
      * prefix when the constants are loaded.
      */

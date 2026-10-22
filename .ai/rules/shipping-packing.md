@@ -98,6 +98,15 @@ Pass the cart products or `value` is zero. Dividing the order subtotal evenly ac
 parcels — what modules did before this existed — over-insures the light ones and
 under-insures the heavy ones.
 
+For a cart above `SHIPPING_PACKING_MAX_UNITS` the packer samples rather than modelling
+every unit, and the list you get back is extrapolated: the sampled parcels repeated to
+reach the billable count, so rating every entry still covers the whole shipment. The
+sizes and weights are real; which item sits in which parcel is representative. Such a
+plan is also not contents-complete, so it is never written to the order.
+
+**Invariant worth relying on:** `count(parcels(...))` always equals
+`packageCount($plan, ...)`. Rate every entry and you have rated the shipment.
+
 ### `boundingParcel()` — for one-request-and-multiply modules
 
 ```php

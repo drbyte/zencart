@@ -63,6 +63,15 @@ final class QuoteAdapter
      * path. $cartProducts is optional and, when given, is used to insure each parcel for
      * what is actually in it rather than for an even share of the order.
      *
+     * For an approximated plan - a cart above SHIPPING_PACKING_MAX_UNITS, where the
+     * packer sampled rather than modelled every unit - the sampled parcels are repeated
+     * to reach the parcel count the carrier should be billed for. Without that, summing
+     * this list would quote a fraction of the shipment: a 400-item cart sampled to one
+     * parcel would be rated as one parcel. The repeated entries carry the sample's own
+     * size, weight and contents value, which is representative because the sample is a
+     * proportional slice of the cart - so the total is close and, like everything else
+     * here, never under-quotes.
+     *
      * Each parcel also reports its volume and carrier girth, because not every module
      * rates a parcel: Australia Post-style modules classify one against limits such as
      * a maximum length, a maximum cubic volume, or a letter size band, and recomputing
@@ -83,7 +92,6 @@ final class QuoteAdapter
             $linePrices[(string)($product['id'] ?? '')] = (float)($product['final_price'] ?? 0);
         }
 
-        $total = $plan->packageCount();
         $parcels = [];
         $sequence = 0;
 
@@ -102,7 +110,7 @@ final class QuoteAdapter
 
             $parcels[] = [
                 'sequence' => $sequence,
-                'count' => $total,
+                'count' => 0, // replaced below, once the billable count is known
                 'length' => $converted->length,
                 'width' => $converted->width,
                 'height' => $converted->height,
@@ -119,7 +127,36 @@ final class QuoteAdapter
             ];
         }
 
-        return $parcels;
+        return self::toBillableCount($parcels, $plan->quotablePackageCount());
+    }
+
+    /**
+     * Repeat the computed parcels until the list is as long as the count the carrier
+     * should be billed for, then number them.
+     *
+     * A no-op for every ordinary plan, where the two are already equal.
+     *
+     * @param array<int, array<string, mixed>> $parcels
+     * @return array<int, array<string, mixed>>
+     */
+    private static function toBillableCount(array $parcels, int $billable): array
+    {
+        if ($parcels === []) {
+            return [];
+        }
+
+        $computed = count($parcels);
+        $total = max($billable, $computed);
+
+        $out = [];
+        for ($i = 0; $i < $total; $i++) {
+            $parcel = $parcels[$i % $computed];
+            $parcel['sequence'] = $i + 1;
+            $parcel['count'] = $total;
+            $out[] = $parcel;
+        }
+
+        return $out;
     }
 
     /**

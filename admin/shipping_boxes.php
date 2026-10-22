@@ -43,8 +43,9 @@ switch ($action) {
             break;
         }
 
-        $sql_data = $form_values;
-        $sql_data['last_modified'] = 'now()';
+        // Nulls have to be rendered for zen_db_perform or the insert fails silently;
+        // see BoxForm::toDatabaseRow().
+        $sql_data = BoxForm::toDatabaseRow($form_values);
 
         if ($action === 'save') {
             zen_db_perform(TABLE_SHIPPING_BOXES, $sql_data, 'UPDATE', 'box_id = ' . $bID);

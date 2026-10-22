@@ -131,6 +131,28 @@ final class BoxForm
     }
 
     /**
+     * Render validated values as a row zen_db_perform can store.
+     *
+     * validate() returns nulls where null is the right domain meaning - no payload
+     * limit, no carrier restriction, no per-box margin - and those are the common case,
+     * not the exotic one. Handing them straight to zen_db_perform fails the insert
+     * silently, so the translation happens here, in one named place the page cannot
+     * skip, rather than being remembered at each call site.
+     *
+     * @param array<string, mixed> $values from validate()['values']
+     * @return array<string, mixed>
+     */
+    public static function toDatabaseRow(array $values, bool $touchLastModified = true): array
+    {
+        $row = PackingSchema::dbRow($values);
+        if ($touchLastModified) {
+            $row['last_modified'] = 'now()';
+        }
+
+        return $row;
+    }
+
+    /**
      * Fill an exterior from an interior plus a uniform wall thickness, for the admin
      * convenience button. Thickness is per wall, so each axis grows by twice it.
      *
