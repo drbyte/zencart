@@ -114,6 +114,13 @@ ALTER TABLE products ADD products_orientation_lock tinyint(1) NOT NULL default 0
 
 #PROGRESS_FEEDBACK:!TEXT=Updating configuration settings...
 
+# Reports menu entry for the missing-dimensions report.
+DELETE FROM admin_pages WHERE page_key = 'reportShippingDimensions';
+INSERT INTO admin_pages (page_key, language_key, main_page, page_params, menu_key, display_on_menu, sort_order)
+VALUES ('reportShippingDimensions', 'BOX_REPORTS_SHIPPING_DIMENSIONS', 'FILENAME_SHIPPING_DIMENSIONS_REPORT', '', 'reports', 'Y', 6);
+DELETE FROM admin_pages_to_profiles WHERE page_key = 'reportShippingDimensions';
+INSERT INTO admin_pages_to_profiles (profile_id, page_key) VALUES (1, 'reportShippingDimensions');
+
 # Dimensional shipping packing settings. Disabled by default: an existing store's
 # quotes must not change until the owner defines boxes and turns this on.
 DELETE FROM configuration WHERE configuration_key IN ('SHIPPING_PACKING_ENABLED', 'SHIPPING_PACKING_INTERIOR_MARGIN_PCT', 'SHIPPING_PACKING_MISSING_DIMS_POLICY', 'SHIPPING_PACKING_DEFAULT_BOX_CODE', 'SHIPPING_PACKING_MAX_UNITS', 'SHIPPING_PACKING_MAX_GIRTH', 'SHIPPING_PACKING_PERSIST');

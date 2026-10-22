@@ -162,6 +162,7 @@ define('FILENAME_SEARCH_RESULT', 'search_result');
 define('FILENAME_SEND_AUTH_TOKEN_EMAIL', 'send_auth_token_email');
 define('FILENAME_SERVER_INFO', 'server_info');
 define('FILENAME_SHIPPING', 'shippinginfo');
+define('FILENAME_SHIPPING_DIMENSIONS_REPORT', 'shipping_dimensions_report');
 define('FILENAME_SHOPPING_CART', 'shopping_cart');
 define('FILENAME_SITE_MAP', 'site_map');
 define('FILENAME_SPECIALS', 'specials');

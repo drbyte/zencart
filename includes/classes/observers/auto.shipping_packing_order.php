@@ -128,10 +128,11 @@ class zcObserverShippingPackingOrder extends base
     /**
      * The plan that produced the accepted quote, or a fresh one marked as rebuilt.
      *
-     * Re-packing is a last resort, for orders created where no quote ran in this
-     * request - admin-entered orders, and payment flows that build the order from an
-     * IPN. Such a plan is a reasonable guess about how the goods will be packed, but it
-     * is not what the customer was charged for, and plan_origin says so.
+     * Re-packing is a last resort, for an order created where no quote ran in this
+     * request: an order entered or amended in admin, or any flow that builds one
+     * outside a shopper session. Such a plan is a reasonable guess about how the goods
+     * will be packed, but it is not what the customer was charged for, and plan_origin
+     * says so.
      *
      * @return array{0: ?PackingPlan, 1: string}
      */
