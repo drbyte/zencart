@@ -41,10 +41,12 @@ final class PackingService
     /**
      * @param array<int, array<string, mixed>> $cartProducts from shopping_cart::get_products()
      * @param BoxType[] $boxes
+     * @param int[] $downloadProductIds lines that do not ship because a selected
+     *        attribute carries a download
      */
-    public function planFor(array $cartProducts, array $boxes, PackingContext $context): PackingPlan
+    public function planFor(array $cartProducts, array $boxes, PackingContext $context, array $downloadProductIds = []): PackingPlan
     {
-        $request = $this->adapter->fromCartProducts($cartProducts, $context);
+        $request = $this->adapter->fromCartProducts($cartProducts, $context, $downloadProductIds);
 
         // Nothing to ship, no boxes defined, or a cart too large to model: fall back
         // rather than inventing a plan. A store with packing switched on but no boxes

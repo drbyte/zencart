@@ -353,6 +353,73 @@ class CartPackingAdapterTest extends PackingTestCase
         $this->assertSame(9, $request->unitCount());
     }
 
+    /**
+     * A download line does not ship, so it must not be treated as an unmeasured
+     * physical item.
+     *
+     * This is the difference between a download sitting quietly in a mixed cart and a
+     * download dropping the entire cart to weight-only quoting: an unexcluded,
+     * dimensionless line trips the missing-dimensions policy for everything.
+     */
+    public function testDownloadLinesAreExcludedAndDoNotForceAFallback(): void
+    {
+        $products = [
+            $this->line(['id' => '179', 'quantity' => 1.0, 'length' => null, 'width' => null, 'height' => null]),
+            $this->line(['id' => '42', 'quantity' => 1.0]),
+        ];
+
+        $request = (new CartPackingAdapter())->fromCartProducts($products, $this->context(), [179]);
+
+        $this->assertSame(1, $request->excludedLineCount);
+        $this->assertSame(1, $request->unitCount(), 'Only the physical line is packed.');
+        $this->assertSame('42', $request->items[0]->uprid);
+        $this->assertFalse(
+            $request->hasMissingDimensions(),
+            'A download must not be reported as a product needing measurement.'
+        );
+    }
+
+    /**
+     * product_is_always_free_shipping = 2 is the download-plus-physical-goods case, so
+     * such a line ships even though it carries a download.
+     */
+    public function testADownloadThatStillShipsIsNotExcluded(): void
+    {
+        $products = [
+            $this->line(['id' => '180', 'quantity' => 1.0, 'product_is_always_free_shipping' => 2]),
+        ];
+
+        $request = (new CartPackingAdapter())->fromCartProducts($products, $this->context(), [180]);
+
+        $this->assertSame(1, $request->unitCount(), '"Special, requires shipping" still ships.');
+    }
+
+    /**
+     * The query mirrors core: per selected attribute value, and skipping lines flagged
+     * as still requiring shipping.
+     */
+    public function testDownloadQueryCoversEachSelectedAttributeValue(): void
+    {
+        $sql = CartPackingAdapter::downloadLinesSql([
+            $this->line(['id' => '7', 'attributes' => [3 => 11, 4 => 12]]),
+            $this->line(['id' => '8', 'attributes' => [3 => 13], 'product_is_always_free_shipping' => 2]),
+        ]);
+
+        $this->assertStringContainsString('pa.products_id = 7 AND pa.options_values_id = 11', $sql);
+        $this->assertStringContainsString('pa.products_id = 7 AND pa.options_values_id = 12', $sql);
+        $this->assertStringNotContainsString(
+            'pa.products_id = 8',
+            $sql,
+            'A line that still requires shipping is not a download for this purpose.'
+        );
+        $this->assertStringContainsString('products_attributes_download', $sql);
+    }
+
+    public function testDownloadQueryIsEmptyWhenNothingHasAttributes(): void
+    {
+        $this->assertSame('', CartPackingAdapter::downloadLinesSql([$this->line(['quantity' => 1.0])]));
+    }
+
     public function testUnitsOfTheSameLineShareALineKey(): void
     {
         $request = (new CartPackingAdapter())->fromCartProducts(

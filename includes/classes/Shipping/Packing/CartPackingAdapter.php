@@ -35,17 +35,68 @@ final class CartPackingAdapter
     public const HARD_UNIT_CEILING = 20000;
 
     /**
-     * @param array<int, array<string, mixed>> $products as returned by shopping_cart::get_products()
+     * Query finding which cart lines are downloads, and so do not ship.
+     *
+     * Core treats a line as virtual when a *selected attribute value* carries a
+     * download, unless product_is_always_free_shipping is 2 - "special, requires
+     * shipping", the download-plus-physical-goods case. See
+     * shopping_cart::get_content_type(), which this mirrors.
+     *
+     * Returned as one statement over every (product, selected value) pair in the cart
+     * rather than a query per line, because this runs on the quote path. Returns an
+     * empty string when the cart has no attribute selections at all.
+     *
+     * @param array<int, array<string, mixed>> $products as returned by get_products()
      */
-    public function fromCartProducts(array $products, PackingContext $context): PackingRequest
+    public static function downloadLinesSql(array $products): string
     {
+        $pairs = [];
+        foreach ($products as $product) {
+            if ((int)($product['product_is_always_free_shipping'] ?? 0) === 2) {
+                continue;
+            }
+            foreach ((array)($product['attributes'] ?? []) as $valueId) {
+                $productId = (int)$product['id'];
+                $valueId = (int)$valueId;
+                if ($productId > 0 && $valueId > 0) {
+                    $pairs[] = '(pa.products_id = ' . $productId . ' AND pa.options_values_id = ' . $valueId . ')';
+                }
+            }
+        }
+
+        if ($pairs === []) {
+            return '';
+        }
+
+        return 'SELECT DISTINCT pa.products_id
+                FROM ' . PackingSchema::tableName('products_attributes') . ' pa
+                INNER JOIN ' . PackingSchema::tableName('products_attributes_download') . ' pad
+                  USING (products_attributes_id)
+                WHERE ' . implode(' OR ', $pairs);
+    }
+
+    /**
+     * @param array<int, array<string, mixed>> $products as returned by shopping_cart::get_products()
+     * @param int[] $downloadProductIds product ids whose selected attributes carry a
+     *        download, from downloadLinesSql(); such lines do not ship
+     */
+    public function fromCartProducts(array $products, PackingContext $context, array $downloadProductIds = []): PackingRequest
+    {
+        $downloads = array_flip(array_map('intval', $downloadProductIds));
+
         $items = [];
         $excluded = 0;
         $missing = [];
         $declaredUnits = 0;
 
         foreach ($products as $product) {
-            if ($this->isNonShipping($product)) {
+            // A download line is virtual in core's eyes, so it must not be treated as
+            // an unmeasured physical item - that would drop the whole cart to
+            // weight-only quoting over goods that never enter a parcel.
+            $isDownload = isset($downloads[(int)($product['id'] ?? 0)])
+                && (int)($product['product_is_always_free_shipping'] ?? 0) !== 2;
+
+            if ($isDownload || $this->isNonShipping($product)) {
                 $excluded++;
                 continue;
             }

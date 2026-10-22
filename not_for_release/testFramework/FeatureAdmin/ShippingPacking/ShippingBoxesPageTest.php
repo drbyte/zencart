@@ -142,7 +142,7 @@ class ShippingBoxesPageTest extends zcInProcessFeatureTestCaseAdmin
         $page->assertSee('Interior L');
         $page->assertSee('Exterior L');
         $page->assertSee('Max contents weight');
-        $page->assertSee('Carrier only');
+        $page->assertSee('Restrict to carrier');
     }
 
     /**

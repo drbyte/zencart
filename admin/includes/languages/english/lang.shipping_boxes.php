@@ -16,6 +16,7 @@ $define = [
     'TABLE_HEADING_EXTERIOR' => 'Exterior (L x W x H)',
     'TABLE_HEADING_MAX_PAYLOAD' => 'Max Contents',
     'TABLE_HEADING_SCOPE' => 'Destinations',
+    'TABLE_HEADING_CARRIER' => 'Carrier',
     'TABLE_HEADING_ENABLED' => 'Enabled',
     'TABLE_HEADING_ACTION' => 'Action',
 
@@ -35,8 +36,8 @@ $define = [
     'ENTRY_MAX_PAYLOAD_INFO' => 'Most this box may hold, excluding the box itself. Leave blank or 0 for no limit.',
     'ENTRY_WEIGHT_UNITS' => 'Weight units',
     'ENTRY_DESTINATION_SCOPE' => 'Destinations',
-    'ENTRY_CARRIER_CODE' => 'Carrier only',
-    'ENTRY_CARRIER_CODE_INFO' => 'Leave blank for ordinary stock. Set it only for carrier-supplied packaging, e.g. a flat-rate envelope, so it is offered only when quoting that carrier.',
+    'ENTRY_CARRIER_CODE' => 'Restrict to carrier',
+    'ENTRY_CARRIER_CODE_INFO' => '<strong>Leave blank</strong> and this box can be used for any carrier. That is what you want for ordinary boxes you buy yourself.<br><br>Fill it in only for packaging a carrier supplies, such as a USPS flat-rate envelope, which you may not use when shipping with anyone else. Enter the carrier code your shipping module reports, for example <em>usps</em> &mdash; if it does not match, the box is simply never offered.',
     'ENTRY_SORT_ORDER' => 'Sort order',
     'ENTRY_ENABLED' => 'Enabled',
 

@@ -33,6 +33,7 @@ final class MissingDimensionsReport
     {
         $products = PackingSchema::tableName('products');
         $description = PackingSchema::tableName('products_description');
+        $types = PackingSchema::tableName('product_types');
 
         return "SELECT p.products_id, p.products_model, p.products_status,
                        p.products_length, p.products_width, p.products_height,
@@ -40,7 +41,11 @@ final class MissingDimensionsReport
                 FROM " . $products . " p
                 LEFT JOIN " . $description . " pd
                   ON pd.products_id = p.products_id AND pd.language_id = " . $languageId . "
+                LEFT JOIN " . $types . " pt ON pt.type_id = p.products_type
                 WHERE (p.products_virtual IS NULL OR p.products_virtual <> 1)
+                  -- A product type that cannot be added to a cart can never reach the
+                  -- packer, so it is not work for the store to do.
+                  AND (pt.allow_add_to_cart IS NULL OR pt.allow_add_to_cart <> 'N')
                   AND (p.product_is_always_free_shipping IS NULL OR p.product_is_always_free_shipping <> 1)
                   AND (p.products_model IS NULL OR p.products_model NOT LIKE 'GIFT%')
                   AND (p.products_length IS NULL OR p.products_length <= 0

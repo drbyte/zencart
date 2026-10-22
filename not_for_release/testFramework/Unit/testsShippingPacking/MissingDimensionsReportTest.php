@@ -143,6 +143,18 @@ class MissingDimensionsReportTest extends PackingTestCase
         $this->assertStringContainsString('ORDER BY', $sql);
     }
 
+    /**
+     * A product type that cannot be added to a cart can never reach the packer, so it
+     * is not work for the store to do.
+     */
+    public function testQueryExcludesTypesThatCannotBeAddedToACart(): void
+    {
+        $sql = MissingDimensionsReport::sql(1);
+
+        $this->assertStringContainsString('product_types', $sql);
+        $this->assertMatchesRegularExpression("/allow_add_to_cart\s*<>\s*'N'/", $sql);
+    }
+
     public function testQueryLooksForAnyMissingAxisNotAllThree(): void
     {
         $sql = MissingDimensionsReport::sql(1);

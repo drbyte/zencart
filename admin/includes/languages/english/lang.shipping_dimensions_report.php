@@ -24,6 +24,7 @@ $define = [
     'TEXT_AXIS_HEIGHT' => 'Height',
     'TEXT_SUMMARY' => '%1$s product(s) need dimensions: %2$s enabled, %3$s disabled.',
     'TEXT_SUMMARY_NO_WEIGHT' => '%s of these have no weight either, so they cannot be quoted by any method.',
+    'TEXT_ATTRIBUTE_NOTE' => 'A product whose size comes from its attributes still needs base dimensions here. Packing uses the product\'s own length, width and height; attribute dimensions are not yet supported, so without base measurements such a product forces weight-only quoting for the whole cart.',
     'TEXT_NONE_MISSING' => 'Every shippable product has dimensions. Nothing to do here.',
     'TEXT_EDIT_PRODUCT' => 'Edit',
     'TEXT_SHOW_DISABLED' => 'Include disabled products',

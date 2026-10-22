@@ -77,6 +77,8 @@ $axisLabels = [
               ?>
           </div>
 
+          <p class="text-muted"><?php echo TEXT_ATTRIBUTE_NOTE; ?></p>
+
           <p>
             <a href="<?php echo zen_href_link(FILENAME_SHIPPING_DIMENSIONS_REPORT, 'show_disabled=' . ($showDisabled ? '0' : '1')); ?>">
                 <?php echo TEXT_SHOW_DISABLED; ?><?php echo $showDisabled ? ' &check;' : ''; ?>
