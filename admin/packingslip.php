@@ -45,6 +45,30 @@ $order = new order($oID);
   </head>
   <body>
 <?php
+// -----
+// Dimensional shipping: load any parcel breakdown recorded for this order, so the
+// products below can be grouped per parcel. A store that has never used packing has no
+// rows here and the slip renders exactly as it always did.
+//
+$packing_packages = [];
+if (!empty($oID) && defined('TABLE_ORDERS_PACKAGES')) {
+    $packing_rows = [];
+    $packing_result = $db->Execute(\Zencart\Shipping\Packing\OrderPackages::packagesSql((int)$oID));
+    while (!$packing_result->EOF) {
+        $packing_rows[] = $packing_result->fields;
+        $packing_result->MoveNext();
+    }
+    if ($packing_rows !== []) {
+        $packing_contents = [];
+        $packing_contents_result = $db->Execute(\Zencart\Shipping\Packing\OrderPackages::contentsSql((int)$oID));
+        while (!$packing_contents_result->EOF) {
+            $packing_contents[] = $packing_contents_result->fields;
+            $packing_contents_result->MoveNext();
+        }
+        $packing_packages = \Zencart\Shipping\Packing\OrderPackages::fromRows($packing_rows, $packing_contents);
+    }
+}
+
 if (empty($order->info)) {
 ?>
       <p class="text-danger text-center"><?= ERROR_ORDER_DOES_NOT_EXIST . $oID ?></p>
@@ -149,6 +173,9 @@ if (empty($order->info)) {
         </tr>
       </table>
       <div><?php echo zen_draw_separator('pixel_trans.gif', '', '10'); ?></div>
+      <?php if (\Zencart\Shipping\Packing\OrderPackages::needsCaveat($packing_packages)) { ?>
+        <p class="alert alert-warning"><?php echo TEXT_PACKINGSLIP_PARCELS_CAVEAT; ?></p>
+      <?php } ?>
       <table class="table table-striped">
         <thead>
           <tr class="dataTableHeadingRow">
@@ -214,12 +241,72 @@ if (empty($order->info)) {
              */
             $sort_order = false;
             $zco_notifier->notify('NOTIFY_ADMIN_PACKINGSLIP_SORT_DISPLAY', $order->products, $sort_order);
-            for ($ii = 0, $n = sizeof($order->products); $ii < $n; $ii++) {
-                if (is_array($sort_order)) {
-                    $i = $sort_order[$ii];
-                } else {
-                    $i = $ii;
+
+            // -----
+            // One printable row per entry: which product, the quantity to show for it
+            // here, and the parcel it opens. With no recorded parcels this is simply
+            // every line once, in the notifier's order, at its order quantity - the
+            // behaviour this page has always had.
+            //
+            $packing_sequence = \Zencart\Shipping\Packing\OrderPackages::renderSequence(
+                $packing_packages,
+                $order->products,
+                $sort_order
+            );
+            $packing_unassigned_announced = false;
+            $packing_column_span = 3
+                + ($show_product_images_pack ? 1 : 0)
+                + (is_array($extra_headings) ? count($extra_headings) : 0);
+
+            foreach ($packing_sequence as $packing_entry) {
+                if ($packing_entry['parcel'] !== null) {
+                    $packing_parcel = $packing_entry['parcel'];
+                    ?>
+            <tr>
+              <td class="dataTableHeadingContent" colspan="<?php echo $packing_column_span; ?>">
+                  <?php
+                    echo sprintf(TEXT_PACKINGSLIP_PARCEL_OF, (int)$packing_parcel['sequence'], (int)$packing_parcel['count']);
+                    if ($packing_parcel['box_title'] !== '') {
+                        echo ' &mdash; ' . zen_output_string_protected($packing_parcel['box_title']);
+                    }
+                    if ((float)$packing_parcel['length'] > 0) {
+                        echo ' &mdash; ' . sprintf(
+                            TEXT_PACKINGSLIP_PARCEL_SIZE,
+                            number_format((float)$packing_parcel['length'], 2),
+                            number_format((float)$packing_parcel['width'], 2),
+                            number_format((float)$packing_parcel['height'], 2),
+                            zen_output_string_protected($packing_parcel['dim_units'])
+                        );
+                    }
+                    if ((float)$packing_parcel['weight'] > 0) {
+                        echo ' &mdash; ' . number_format((float)$packing_parcel['weight'], 2)
+                            . ' ' . zen_output_string_protected($packing_parcel['weight_units']);
+                    }
+                  ?>
+              </td>
+            </tr>
+                    <?php
                 }
+
+                // A parcel whose lines were all removed in admin still existed; it is
+                // announced by the header above and has no line of its own to print.
+                if ($packing_entry['index'] < 0) {
+                    continue;
+                }
+
+                if (!empty($packing_entry['unassigned']) && $packing_packages !== [] && !$packing_unassigned_announced) {
+                    $packing_unassigned_announced = true;
+                    ?>
+            <tr>
+              <td class="dataTableHeadingContent" colspan="<?php echo $packing_column_span; ?>">
+                  <?php echo TEXT_PACKINGSLIP_NOT_IN_A_PARCEL; ?>
+              </td>
+            </tr>
+                    <?php
+                }
+
+                $i = $packing_entry['index'];
+                $packing_display_qty = $packing_entry['qty'];
             $product_name = $order->products[$i]['name'];
             ?>
             <tr class="dataTableRow">
@@ -230,7 +317,7 @@ if (empty($order->info)) {
                 <?php } ?>
 
               <td class="dataTableContent text-right">
-                <?php echo $order->products[$i]['qty']; ?>&nbsp;x
+                <?php echo $packing_display_qty; ?>&nbsp;x
               </td>
               <td class="dataTableContent">
                     <?php echo $product_name; ?>

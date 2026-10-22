@@ -9,6 +9,10 @@
 $define = [
     'ENTRY_CUSTOMER' => 'CUSTOMER:',
     'ENTRY_PAYMENT_METHOD' => 'Payment Method:',
+    'TEXT_PACKINGSLIP_PARCEL_OF' => 'Parcel %1$s of %2$s',
+    'TEXT_PACKINGSLIP_PARCEL_SIZE' => '%1$s x %2$s x %3$s %4$s',
+    'TEXT_PACKINGSLIP_NOT_IN_A_PARCEL' => 'Not assigned to a parcel',
+    'TEXT_PACKINGSLIP_PARCELS_CAVEAT' => 'The parcel breakdown below was rebuilt or may no longer match this order. Check it before packing.',
 ];
 
 return $define;
