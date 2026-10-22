@@ -30,7 +30,7 @@ final class OrderPackages
 
     public static function contentsSql(int $ordersId): string
     {
-        return "SELECT orders_packages_id, orders_products_id, products_quantity
+        return "SELECT orders_packages_id, orders_id, orders_products_id, products_quantity
                 FROM " . PackingSchema::tableName('orders_packages_products') . "
                 WHERE orders_id = " . $ordersId;
     }

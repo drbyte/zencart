@@ -56,7 +56,7 @@ final class PackingPersistence
                 'package_count' => $total,
                 // Null when no catalog box applied - an own-box item, or one larger
                 // than anything the store stocks.
-                'box_id' => $box?->boxId,
+                'box_id' => self::nullable($box?->boxId),
                 // Snapshotted, following the orders_products precedent: the catalog row
                 // may be edited or deleted long before someone reprints the slip.
                 'box_code' => $box->code ?? '',
@@ -65,14 +65,14 @@ final class PackingPersistence
                 'quoted_width' => $package->exterior->width,
                 'quoted_height' => $package->exterior->height,
                 'quoted_weight' => $package->weight->value,
-                'quoted_billable_weight' => $package->billableWeight?->value,
+                'quoted_billable_weight' => self::nullable($package->billableWeight?->value),
                 'tare_weight' => $package->tare->value,
                 'dim_units' => $package->exterior->units,
                 'weight_units' => $package->weight->units,
                 'packer_code' => $plan->packerCode,
                 'plan_origin' => $origin,
                 'plan_is_stale' => 0,
-                'packed_at' => $packedAt,
+                'packed_at' => self::nullable($packedAt),
             ];
 
             foreach ($package->quantitiesByLine() as $lineKey => $quantity) {
@@ -93,6 +93,21 @@ final class PackingPersistence
         }
 
         return ['packages' => $packages, 'contents' => $contents];
+    }
+
+    /**
+     * Render a null as the literal zen_db_perform understands.
+     *
+     * zen_db_perform() casts every value with (string), so PHP null arrives as an empty
+     * string and is quoted - and '' into an int or decimal column is rejected under
+     * strict SQL mode, failing the whole insert. Only the literal 'null' reaches the
+     * query as SQL NULL. This matters for the common cases, not the exotic ones: an
+     * own-box parcel has no box_id, and a parcel has no billable weight whenever the
+     * carrier module supplied no dimensional divisor.
+     */
+    private static function nullable(mixed $value): mixed
+    {
+        return $value === null ? 'null' : $value;
     }
 
     /**

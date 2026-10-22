@@ -119,7 +119,8 @@ class PackingPersistenceTest extends PackingTestCase
 
         $rows = PackingPersistence::rowsFor($plan, 3, ['line-furniture' => 12]);
 
-        $this->assertNull($rows['packages'][0]['box_id']);
+        // 'null' rather than PHP null: see testNullsAreRenderedAsTheDatabaseLiteralNotPhpNull.
+        $this->assertSame('null', $rows['packages'][0]['box_id']);
         $this->assertSame('', $rows['packages'][0]['box_code']);
         $this->assertSame(40.0, $rows['packages'][0]['quoted_length']);
     }
@@ -247,6 +248,53 @@ class PackingPersistenceTest extends PackingTestCase
 
         $this->assertSame(0, $written);
         $this->assertSame(0, $calls);
+    }
+
+    /**
+     * Nulls must be rendered as the literal zen_db_perform understands.
+     *
+     * That function casts every value with (string), so PHP null becomes an empty
+     * string and is quoted - and '' into an int or decimal column is rejected under
+     * strict SQL mode, failing the entire insert. Only the literal 'null' reaches the
+     * query as SQL NULL.
+     *
+     * This is not an exotic case: an own-box parcel has no box_id, and a parcel has no
+     * billable weight whenever the carrier module supplied no dimensional divisor -
+     * which is most of them. Before this, persistence silently wrote nothing for those
+     * orders, and only a database-backed test revealed it.
+     */
+    public function testNullsAreRenderedAsTheDatabaseLiteralNotPhpNull(): void
+    {
+        $items = [$this->item(40, 30, 20, 60.0, 'furniture', ownBox: true)];
+        $boxes = [$this->box('S', 8, 8, 8)];
+        $plan = (new FirstFitDecreasingPacker())->pack($items, $boxes, $this->context());
+
+        $row = PackingPersistence::rowsFor($plan, 3, ['line-furniture' => 12], PackingPersistence::ORIGIN_QUOTED, null)['packages'][0];
+
+        $this->assertSame('null', $row['box_id'], 'An own-box parcel has no catalog box.');
+        $this->assertSame('null', $row['quoted_billable_weight'], 'No dimensional divisor was supplied.');
+        $this->assertSame('null', $row['packed_at'], 'An absent timestamp must not become an empty string.');
+
+        foreach ($row as $column => $value) {
+            $this->assertNotNull($value, 'Column ' . $column . ' must never be PHP null in a row handed to zen_db_perform.');
+        }
+    }
+
+    /**
+     * A value that is present must pass through untouched - the null rendering must not
+     * swallow a real zero.
+     */
+    public function testPresentValuesIncludingZeroArePreserved(): void
+    {
+        $items = $this->units(1, $this->item(4, 4, 4, 1.0, 'thing'));
+        $boxes = [$this->box('M', 12, 12, 12, tare: 0.0)];
+        $plan = (new FirstFitDecreasingPacker())->pack($items, $boxes, $this->context());
+
+        $row = PackingPersistence::rowsFor($plan, 3, ['line-thing' => 12], PackingPersistence::ORIGIN_QUOTED, '2026-10-22 09:00:00')['packages'][0];
+
+        $this->assertSame(0.0, $row['tare_weight'], 'A real zero is not a null.');
+        $this->assertSame('2026-10-22 09:00:00', $row['packed_at']);
+        $this->assertSame(0, $row['plan_is_stale']);
     }
 
     /**
