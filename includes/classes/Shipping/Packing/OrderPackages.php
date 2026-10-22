@@ -23,7 +23,7 @@ final class OrderPackages
                        quoted_length, quoted_width, quoted_height, quoted_weight,
                        quoted_billable_weight, tare_weight, dim_units, weight_units,
                        packer_code, plan_origin, plan_is_stale, packed_at
-                FROM " . PackingSchema::tableName('orders_packages') . "
+                FROM " . TABLE_ORDERS_PACKAGES . "
                 WHERE orders_id = " . $ordersId . "
                 ORDER BY package_sequence";
     }
@@ -31,7 +31,7 @@ final class OrderPackages
     public static function contentsSql(int $ordersId): string
     {
         return "SELECT orders_packages_id, orders_id, orders_products_id, products_quantity
-                FROM " . PackingSchema::tableName('orders_packages_products') . "
+                FROM " . TABLE_ORDERS_PACKAGES_PRODUCTS . "
                 WHERE orders_id = " . $ordersId;
     }
 
@@ -286,7 +286,7 @@ final class OrderPackages
         }
 
         $db->Execute(
-            'UPDATE ' . PackingSchema::tableName('orders_packages')
+            'UPDATE ' . TABLE_ORDERS_PACKAGES
             . ' SET plan_is_stale = 1 WHERE orders_id = ' . $ordersId
         );
     }

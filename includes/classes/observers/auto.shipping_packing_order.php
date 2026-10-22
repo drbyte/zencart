@@ -10,6 +10,7 @@ declare(strict_types=1);
  */
 
 use Zencart\Shipping\Packing\BoxRepository;
+use Zencart\Shipping\Packing\CartPackingAdapter;
 use Zencart\Shipping\Packing\PackingPersistence;
 use Zencart\Shipping\Packing\PackingPlan;
 use Zencart\Shipping\Packing\PackingSchema;
@@ -161,7 +162,18 @@ class zcObserverShippingPackingOrder extends base
             catalogRevision: $catalog['revision']
         );
 
-        $plan = (new PackingService())->planFor($_SESSION['cart']->get_products(), $catalog['boxes'], $context);
+        // The same enrichment the quote path applies. Without it a reconstructed plan
+        // packs downloads as though they were goods, and ignores the no-stack and
+        // orientation-lock flags, so the breakdown written against the order would not
+        // match the quote the customer accepted.
+        $facts = CartPackingAdapter::enrichFromDatabase($db, $_SESSION['cart']->get_products());
+
+        $plan = (new PackingService())->planFor(
+            $facts['products'],
+            $catalog['boxes'],
+            $context,
+            $facts['downloadProductIds']
+        );
 
         return [$plan, PackingPersistence::ORIGIN_RECONSTRUCTED];
     }

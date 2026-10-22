@@ -8,7 +8,6 @@ declare(strict_types=1);
 namespace Tests\Unit\testsShippingPacking;
 
 use PHPUnit\Framework\Attributes\DataProvider;
-use PHPUnit\Framework\TestCase;
 use Zencart\Shipping\Packing\PackingSchema;
 
 /**
@@ -24,7 +23,7 @@ use Zencart\Shipping\Packing\PackingSchema;
  * than comparing SQL text. Byte equality would fail on harmless formatting differences
  * between the scripts and would make the test an obstacle instead of a guard.
  */
-class PackingSchemaTest extends TestCase
+class PackingSchemaTest extends PackingTestCase
 {
     private const INSTALL_SQL = 'zc_install/sql/install/mysql_zencart.sql';
     private const UPGRADE_SQL = 'zc_install/sql/updates/mysql_upgrade_zencart_300.sql';
@@ -184,15 +183,19 @@ class PackingSchemaTest extends TestCase
     }
 
     /**
-     * The table-name helper has to work both with the constants loaded, as at runtime,
-     * and without them, as in this test - which is what lets the schema be declared in
-     * one place and verified without a bootstrap.
+     * The DDL must name tables through the TABLE_* constants, so a prefixed install
+     * creates prefixed tables. Nothing here resolves names on its own.
      */
-    public function testTableNameFallsBackToTheUnprefixedNameWithoutConstants(): void
+    public function testDdlNamesTablesThroughTheTableConstants(): void
     {
-        $this->assertSame(
-            defined('TABLE_SHIPPING_BOXES') ? (string)constant('TABLE_SHIPPING_BOXES') : 'shipping_boxes',
-            PackingSchema::tableName('shipping_boxes')
+        $statements = implode("\n", PackingSchema::createTableStatements());
+
+        $this->assertStringContainsString(TABLE_SHIPPING_BOXES, $statements);
+        $this->assertStringContainsString(TABLE_ORDERS_PACKAGES, $statements);
+        $this->assertStringContainsString(TABLE_ORDERS_PACKAGES_PRODUCTS, $statements);
+        $this->assertFalse(
+            method_exists(PackingSchema::class, 'tableName'),
+            'Table names come from the constants, never from a resolver that can fall back.'
         );
     }
 }

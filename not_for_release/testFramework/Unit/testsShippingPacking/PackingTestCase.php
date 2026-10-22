@@ -25,6 +25,35 @@ use Zencart\Shipping\Packing\Weight;
  */
 abstract class PackingTestCase extends TestCase
 {
+    /**
+     * Table-name constants the SQL builders use, as includes/database_tables.php
+     * defines them with an empty DB_PREFIX.
+     *
+     * Defined here rather than given to the classes as a fallback: a class that
+     * resolves its own table names silently produces unprefixed SQL wherever the
+     * constants are missing, which on a prefixed install sharing a database means
+     * reading someone else's tables. The test supplies what the runtime supplies.
+     */
+    public static function setUpBeforeClass(): void
+    {
+        parent::setUpBeforeClass();
+
+        foreach ([
+            'TABLE_SHIPPING_BOXES' => 'shipping_boxes',
+            'TABLE_ORDERS_PACKAGES' => 'orders_packages',
+            'TABLE_ORDERS_PACKAGES_PRODUCTS' => 'orders_packages_products',
+            'TABLE_PRODUCTS' => 'products',
+            'TABLE_PRODUCTS_DESCRIPTION' => 'products_description',
+            'TABLE_PRODUCT_TYPES' => 'product_types',
+            'TABLE_PRODUCTS_ATTRIBUTES' => 'products_attributes',
+            'TABLE_PRODUCTS_ATTRIBUTES_DOWNLOAD' => 'products_attributes_download',
+        ] as $constant => $table) {
+            if (!defined($constant)) {
+                define($constant, $table);
+            }
+        }
+    }
+
     protected function item(
         float $l,
         float $w,

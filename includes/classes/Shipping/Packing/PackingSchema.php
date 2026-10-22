@@ -15,9 +15,12 @@ namespace Zencart\Shipping\Packing;
  * earlier version. Declaring the structure once, here, lets a test assert that the
  * core scripts still match it, so the two cannot drift apart silently.
  *
- * The structure accessors are pure and need no bootstrap. Only the DDL builders read
- * the TABLE_* constants, and they fall back to the unprefixed name when those are
- * absent so the class remains usable in a unit test.
+ * The structure accessors are pure and need no bootstrap. Anything that names a table
+ * uses the TABLE_* constants directly, as all SQL in this codebase does: a helper that
+ * resolved names itself would silently produce unprefixed names wherever the constants
+ * were missing, which on a prefixed install sharing a database means querying someone
+ * else's tables instead of failing. Unit tests define the constants rather than being
+ * given a fallback to rely on.
  */
 final class PackingSchema
 {
@@ -138,17 +141,6 @@ final class PackingSchema
     }
 
     /**
-     * Resolve a logical table name to its runtime name, honouring the configured
-     * prefix when the constants are loaded.
-     */
-    public static function tableName(string $logicalName): string
-    {
-        $constant = 'TABLE_' . strtoupper($logicalName);
-
-        return defined($constant) ? (string)constant($constant) : $logicalName;
-    }
-
-    /**
      * CREATE TABLE statements for an installer that runs through the database layer.
      *
      * MyISAM and no foreign keys, matching the 104 of 105 core tables that are already
@@ -160,9 +152,9 @@ final class PackingSchema
      */
     public static function createTableStatements(): array
     {
-        $boxes = self::tableName('shipping_boxes');
-        $packages = self::tableName('orders_packages');
-        $contents = self::tableName('orders_packages_products');
+        $boxes = TABLE_SHIPPING_BOXES;
+        $packages = TABLE_ORDERS_PACKAGES;
+        $contents = TABLE_ORDERS_PACKAGES_PRODUCTS;
 
         return [
             "CREATE TABLE IF NOT EXISTS $boxes (
@@ -237,7 +229,7 @@ final class PackingSchema
      */
     public static function alterProductsStatements(): array
     {
-        $products = self::tableName('products');
+        $products = TABLE_PRODUCTS;
 
         return [
             "ALTER TABLE $products ADD products_no_stack tinyint(1) NOT NULL default 0",

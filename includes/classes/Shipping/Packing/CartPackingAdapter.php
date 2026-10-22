@@ -35,6 +35,84 @@ final class CartPackingAdapter
     public const HARD_UNIT_CEILING = 20000;
 
     /**
+     * Everything the packer needs about these cart lines that the cart array does not
+     * carry, read in two queries and merged in.
+     *
+     * The cart array core builds (shopping_cart::get_products()) supplies dimensions,
+     * weight and ships_in_own_box, but neither the no-stack and orientation-lock flags
+     * nor whether a selected attribute makes the line a download. Those rules used to
+     * live in the quote observer, which meant the order observer's reconstruction path
+     * packed without them and could persist a parcel breakdown that disagreed with the
+     * quote the customer accepted. One method, called by both, is what stops that.
+     *
+     * @param object $db queryFactory
+     * @param array<int, array<string, mixed>> $products as returned by get_products()
+     * @return array{products: array<int, array<string, mixed>>, downloadProductIds: int[]}
+     */
+    public static function enrichFromDatabase(object $db, array $products): array
+    {
+        $downloadProductIds = [];
+        $downloadSql = self::downloadLinesSql($products);
+        if ($downloadSql !== '') {
+            $result = $db->Execute($downloadSql);
+            while (!$result->EOF) {
+                $downloadProductIds[] = (int)$result->fields['products_id'];
+                $result->MoveNext();
+            }
+        }
+
+        $flags = [];
+        $flagsSql = self::packingFlagsSql($products);
+        if ($flagsSql !== '') {
+            $result = $db->Execute($flagsSql);
+            while (!$result->EOF) {
+                $flags[(int)$result->fields['products_id']] = [
+                    'no_stack' => (int)$result->fields['products_no_stack'],
+                    'orientation_lock' => (int)$result->fields['products_orientation_lock'],
+                ];
+                $result->MoveNext();
+            }
+        }
+
+        foreach ($products as $index => $product) {
+            $productId = (int)($product['id'] ?? 0);
+            $products[$index]['no_stack'] = $flags[$productId]['no_stack'] ?? 0;
+            $products[$index]['orientation_lock'] = $flags[$productId]['orientation_lock'] ?? 0;
+        }
+
+        return ['products' => $products, 'downloadProductIds' => $downloadProductIds];
+    }
+
+    /**
+     * Query reading the per-product packing flags.
+     *
+     * These are properties of the product, not of the cart line, so they are not in
+     * the cart array at all. Without this lookup the packer's no-stack and
+     * orientation-lock handling is unreachable: every item would be stackable and
+     * freely rotatable regardless of what the product record says.
+     *
+     * @param array<int, array<string, mixed>> $products as returned by get_products()
+     */
+    public static function packingFlagsSql(array $products): string
+    {
+        $ids = [];
+        foreach ($products as $product) {
+            $productId = (int)($product['id'] ?? 0);
+            if ($productId > 0) {
+                $ids[$productId] = $productId;
+            }
+        }
+
+        if ($ids === []) {
+            return '';
+        }
+
+        return 'SELECT products_id, products_no_stack, products_orientation_lock
+                FROM ' . TABLE_PRODUCTS . '
+                WHERE products_id IN (' . implode(',', $ids) . ')';
+    }
+
+    /**
      * Query finding which cart lines are downloads, and so do not ship.
      *
      * Core treats a line as virtual when a *selected attribute value* carries a
@@ -69,8 +147,8 @@ final class CartPackingAdapter
         }
 
         return 'SELECT DISTINCT pa.products_id
-                FROM ' . PackingSchema::tableName('products_attributes') . ' pa
-                INNER JOIN ' . PackingSchema::tableName('products_attributes_download') . ' pad
+                FROM ' . TABLE_PRODUCTS_ATTRIBUTES . ' pa
+                INNER JOIN ' . TABLE_PRODUCTS_ATTRIBUTES_DOWNLOAD . ' pad
                   USING (products_attributes_id)
                 WHERE ' . implode(' OR ', $pairs);
     }

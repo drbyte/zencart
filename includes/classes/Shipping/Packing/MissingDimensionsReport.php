@@ -34,9 +34,9 @@ final class MissingDimensionsReport
      */
     public static function sql(int $languageId): string
     {
-        $products = PackingSchema::tableName('products');
-        $description = PackingSchema::tableName('products_description');
-        $types = PackingSchema::tableName('product_types');
+        $products = TABLE_PRODUCTS;
+        $description = TABLE_PRODUCTS_DESCRIPTION;
+        $types = TABLE_PRODUCT_TYPES;
 
         return "SELECT p.products_id, p.products_model, p.products_status,
                        p.products_length, p.products_width, p.products_height,
@@ -75,8 +75,8 @@ final class MissingDimensionsReport
      */
     private static function neverReachesPackerPredicate(): string
     {
-        $attributes = PackingSchema::tableName('products_attributes');
-        $downloads = PackingSchema::tableName('products_attributes_download');
+        $attributes = TABLE_PRODUCTS_ATTRIBUTES;
+        $downloads = TABLE_PRODUCTS_ATTRIBUTES_DOWNLOAD;
 
         return "(COALESCE(p.products_virtual, 0) = 1
                  OR COALESCE(pt.allow_add_to_cart, 'Y') = 'N'
@@ -102,8 +102,8 @@ final class MissingDimensionsReport
      */
     public static function excludedCountSql(): string
     {
-        $products = PackingSchema::tableName('products');
-        $types = PackingSchema::tableName('product_types');
+        $products = TABLE_PRODUCTS;
+        $types = TABLE_PRODUCT_TYPES;
 
         return "SELECT COUNT(*) AS total
                 FROM " . $products . " p

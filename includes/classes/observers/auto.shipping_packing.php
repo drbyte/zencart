@@ -107,22 +107,21 @@ class zcObserverShippingPacking extends base
                 catalogRevision: $catalog['revision']
             );
 
-            $products = $_SESSION['cart']->get_products();
+            // Two statements for the whole cart, not two per line: what the cart array
+            // does not carry about these products is read once, by the same method the
+            // order observer uses, so a reconstructed plan cannot differ from the
+            // quoted one.
+            $facts = \Zencart\Shipping\Packing\CartPackingAdapter::enrichFromDatabase(
+                $db,
+                $_SESSION['cart']->get_products()
+            );
 
-            // One statement for the whole cart, not one per line: a line whose selected
-            // attribute carries a download does not ship, and treating it as an
-            // unmeasured physical item would drop the cart to weight-only quoting.
-            $downloadProductIds = [];
-            $downloadSql = \Zencart\Shipping\Packing\CartPackingAdapter::downloadLinesSql($products);
-            if ($downloadSql !== '') {
-                $result = $db->Execute($downloadSql);
-                while (!$result->EOF) {
-                    $downloadProductIds[] = (int)$result->fields['products_id'];
-                    $result->MoveNext();
-                }
-            }
-
-            return $this->service->planFor($products, $catalog['boxes'], $context, $downloadProductIds);
+            return $this->service->planFor(
+                $facts['products'],
+                $catalog['boxes'],
+                $context,
+                $facts['downloadProductIds']
+            );
         } catch (\Throwable $e) {
             trigger_error(
                 'Dimensional shipping: packing skipped for this quote (' . $e->getMessage() . ')',

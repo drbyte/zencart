@@ -140,8 +140,8 @@ final class PackingPersistence
         }
 
         $rows = self::rowsFor($plan, $ordersId, $lineIdsByUprid, $origin, $packedAt);
-        $packagesTable = PackingSchema::tableName('orders_packages');
-        $contentsTable = PackingSchema::tableName('orders_packages_products');
+        $packagesTable = TABLE_ORDERS_PACKAGES;
+        $contentsTable = TABLE_ORDERS_PACKAGES_PRODUCTS;
 
         $written = 0;
         foreach ($rows['packages'] as $package) {

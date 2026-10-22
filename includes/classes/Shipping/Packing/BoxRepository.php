@@ -33,7 +33,7 @@ final class BoxRepository
                        exterior_length, exterior_width, exterior_height,
                        interior_margin, dim_units, tare_weight, max_payload_weight,
                        weight_units, destination_scope, carrier_code, sort_order, last_modified
-                FROM " . PackingSchema::tableName('shipping_boxes') . "
+                FROM " . TABLE_SHIPPING_BOXES . "
                 WHERE is_enabled = 1
                 ORDER BY sort_order, box_code";
 

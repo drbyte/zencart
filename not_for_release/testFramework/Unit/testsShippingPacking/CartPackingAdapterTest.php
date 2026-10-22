@@ -439,4 +439,151 @@ class CartPackingAdapterTest extends PackingTestCase
         $this->assertFalse($request->exceedsUnitCeiling);
         $this->assertSame(0, $request->declaredUnitTotal);
     }
+
+    /**
+     * A fake queryFactory that answers a statement by what it selects, not by call
+     * order: the download query is skipped entirely for a cart with no attribute
+     * selections, so a positional queue would hand its rows to the next query instead.
+     *
+     * @param array<string, array<int, array<string, string>>> $resultSets keyed by a
+     *        substring of the statement they answer
+     */
+    private function scriptedDatabase(array $resultSets): object
+    {
+        return new class($resultSets) {
+            /** @var string[] */
+            public array $statements = [];
+
+            public function __construct(private array $resultSets)
+            {
+            }
+
+            public function Execute(string $sql): object
+            {
+                $this->statements[] = $sql;
+                $rows = [];
+                foreach ($this->resultSets as $marker => $candidate) {
+                    if (str_contains($sql, (string)$marker)) {
+                        $rows = $candidate;
+                        break;
+                    }
+                }
+
+                return new class($rows) {
+                    public array $fields = [];
+                    public bool $EOF = false;
+                    private int $i = 0;
+
+                    public function __construct(private array $rows)
+                    {
+                        $this->sync();
+                    }
+
+                    public function MoveNext(): void
+                    {
+                        $this->i++;
+                        $this->sync();
+                    }
+
+                    private function sync(): void
+                    {
+                        $this->EOF = !isset($this->rows[$this->i]);
+                        $this->fields = $this->rows[$this->i] ?? [];
+                    }
+                };
+            }
+        };
+    }
+
+    public function testPackingFlagsQueryAsksForTheProductsInTheCartOnly(): void
+    {
+        $sql = CartPackingAdapter::packingFlagsSql([
+            ['id' => '12', 'quantity' => 1],
+            ['id' => 12, 'quantity' => 2],
+            ['id' => 0, 'quantity' => 1],
+        ]);
+
+        $this->assertStringContainsString('products_no_stack', $sql);
+        $this->assertStringContainsString('products_orientation_lock', $sql);
+        $this->assertMatchesRegularExpression('/products_id IN \(12\)/', $sql, 'Ids are deduplicated and cast.');
+    }
+
+    public function testPackingFlagsQueryIsEmptyForAnEmptyCart(): void
+    {
+        $this->assertSame('', CartPackingAdapter::packingFlagsSql([]));
+    }
+
+    /**
+     * The flags are properties of the product and are absent from the cart array, so
+     * without this merge the packer's no-stack and orientation-lock handling can never
+     * fire, whatever the product record says.
+     */
+    public function testEnrichmentMergesThePackingFlagsOntoTheCartLines(): void
+    {
+        $db = $this->scriptedDatabase([
+            'products_no_stack' => [
+                ['products_id' => '7', 'products_no_stack' => '1', 'products_orientation_lock' => '0'],
+            ],
+        ]);
+
+        $facts = CartPackingAdapter::enrichFromDatabase($db, [
+            ['id' => 7, 'quantity' => 1, 'attributes' => []],
+            ['id' => 9, 'quantity' => 1, 'attributes' => []],
+        ]);
+
+        $this->assertSame(1, $facts['products'][0]['no_stack']);
+        $this->assertSame(0, $facts['products'][0]['orientation_lock']);
+        $this->assertSame(0, $facts['products'][1]['no_stack'], 'A product with no row defaults to stackable.');
+        $this->assertSame([], $facts['downloadProductIds']);
+    }
+
+    /**
+     * The flags have to survive into the packable item, or the merge above is decoration.
+     */
+    public function testAnEnrichedLineProducesANoStackItem(): void
+    {
+        $db = $this->scriptedDatabase([
+            'products_no_stack' => [
+                ['products_id' => '7', 'products_no_stack' => '1', 'products_orientation_lock' => '1'],
+            ],
+        ]);
+
+        $facts = CartPackingAdapter::enrichFromDatabase($db, [
+            [
+                'id' => 7,
+                'quantity' => 1,
+                'attributes' => [],
+                'weight' => 1.0,
+                // Deliberately not a cube: a cube has one distinct orientation whether
+                // or not it is locked, so it could not show the lock doing anything.
+                'length' => 6.0,
+                'width' => 4.0,
+                'height' => 2.0,
+            ],
+        ]);
+
+        $request = (new CartPackingAdapter())->fromCartProducts(
+            $facts['products'],
+            $this->context(),
+            $facts['downloadProductIds']
+        );
+
+        $this->assertCount(1, $request->items);
+        $this->assertTrue($request->items[0]->noStack, 'products_no_stack must reach the packer.');
+        $this->assertTrue($request->items[0]->orientationLock);
+        $this->assertCount(2, $request->items[0]->orientations(), 'A locked item has two orientations, not six.');
+    }
+
+    public function testEnrichmentStillReportsDownloads(): void
+    {
+        $db = $this->scriptedDatabase([
+            'products_attributes_download' => [['products_id' => '7']],
+        ]);
+
+        $facts = CartPackingAdapter::enrichFromDatabase($db, [
+            ['id' => 7, 'quantity' => 1, 'attributes' => [3]],
+        ]);
+
+        $this->assertSame([7], $facts['downloadProductIds']);
+    }
 }
