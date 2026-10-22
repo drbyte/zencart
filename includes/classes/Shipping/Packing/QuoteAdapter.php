@@ -63,8 +63,14 @@ final class QuoteAdapter
      * path. $cartProducts is optional and, when given, is used to insure each parcel for
      * what is actually in it rather than for an even share of the order.
      *
+     * Each parcel also reports its volume and carrier girth, because not every module
+     * rates a parcel: Australia Post-style modules classify one against limits such as
+     * a maximum length, a maximum cubic volume, or a letter size band, and recomputing
+     * those from length/width/height in every module invites each to get it subtly
+     * wrong.
+     *
      * @param array<int, array<string, mixed>> $cartProducts shopping_cart::get_products()
-     * @return array<int, array{sequence: int, count: int, length: float, width: float, height: float, weight: float, billable_weight: ?float, value: float, box_code: string}>
+     * @return array<int, array{sequence: int, count: int, length: float, width: float, height: float, volume: float, girth: float, weight: float, billable_weight: ?float, value: float, box_code: string, dim_units: string, weight_units: string}>
      */
     public static function parcels(
         PackingPlan $plan,
@@ -90,12 +96,20 @@ final class QuoteAdapter
                 $value += ($linePrices[(string)$lineKey] ?? 0.0) * (float)$quantity;
             }
 
+            // Converted first, then measured, so volume and girth are expressed in the
+            // units the caller asked for rather than the plan's.
+            $converted = $exterior->withUnits($dimUnits);
+
             $parcels[] = [
                 'sequence' => $sequence,
                 'count' => $total,
-                'length' => Units::convert($exterior->length, $exterior->units, $dimUnits),
-                'width' => Units::convert($exterior->width, $exterior->units, $dimUnits),
-                'height' => Units::convert($exterior->height, $exterior->units, $dimUnits),
+                'length' => $converted->length,
+                'width' => $converted->width,
+                'height' => $converted->height,
+                'volume' => $converted->volume(),
+                'girth' => $converted->girth(),
+                'dim_units' => $dimUnits,
+                'weight_units' => $weightUnits,
                 'weight' => Units::convert($package->weight->value, $package->weight->units, $weightUnits),
                 'billable_weight' => $package->billableWeight === null
                     ? null
@@ -109,10 +123,10 @@ final class QuoteAdapter
     }
 
     /**
-     * One notional parcel that bounds every parcel in the plan.
+     * One notional parcel whose every measurement bounds every parcel in the plan.
      *
      * For the many modules that make a single rate request and multiply by the box
-     * count. Rating N copies of this envelope over-quotes a plan whose parcels differ
+     * count. Rating N copies of this bounding parcel over-quotes a plan whose parcels differ
      * and can never under-quote one, which is the direction the packing contract
      * requires - but it is an approximation, and a module able to rate each parcel
      * should use parcels() instead.
@@ -122,7 +136,7 @@ final class QuoteAdapter
      *
      * @return array{length: float, width: float, height: float, weight: float, count: int, value: float}|null
      */
-    public static function envelope(
+    public static function boundingParcel(
         PackingPlan $plan,
         string $dimUnits = Units::INCHES,
         string $weightUnits = Units::POUNDS,
@@ -133,7 +147,7 @@ final class QuoteAdapter
             return null;
         }
 
-        $envelope = [
+        $bounding = [
             'length' => 0.0,
             'width' => 0.0,
             'height' => 0.0,
@@ -143,18 +157,18 @@ final class QuoteAdapter
         ];
 
         foreach ($parcels as $parcel) {
-            $envelope['length'] = max($envelope['length'], $parcel['length']);
-            $envelope['width'] = max($envelope['width'], $parcel['width']);
-            $envelope['height'] = max($envelope['height'], $parcel['height']);
-            $envelope['weight'] = max($envelope['weight'], $parcel['weight']);
-            $envelope['value'] = max($envelope['value'], $parcel['value']);
+            $bounding['length'] = max($bounding['length'], $parcel['length']);
+            $bounding['width'] = max($bounding['width'], $parcel['width']);
+            $bounding['height'] = max($bounding['height'], $parcel['height']);
+            $bounding['weight'] = max($bounding['weight'], $parcel['weight']);
+            $bounding['value'] = max($bounding['value'], $parcel['value']);
         }
 
-        if ($envelope['length'] <= 0.0 || $envelope['width'] <= 0.0
-            || $envelope['height'] <= 0.0 || $envelope['weight'] <= 0.0) {
+        if ($bounding['length'] <= 0.0 || $bounding['width'] <= 0.0
+            || $bounding['height'] <= 0.0 || $bounding['weight'] <= 0.0) {
             return null;
         }
 
-        return $envelope;
+        return $bounding;
     }
 }

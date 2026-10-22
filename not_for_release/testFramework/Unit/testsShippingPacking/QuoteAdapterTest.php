@@ -19,7 +19,7 @@ use Zencart\Shipping\Packing\Units;
  * Core ships no dimensional carrier module, so every first consumer of a plan is a
  * plugin. This is the one supported path for them, which makes its edges worth pinning:
  * what counts as a usable plan, which figures a module may trust, and the deliberate
- * choice between rating each parcel and rating one envelope N times.
+ * choice between rating each parcel and rating one bounding parcel N times.
  */
 class QuoteAdapterTest extends PackingTestCase
 {
@@ -130,6 +130,52 @@ class QuoteAdapterTest extends PackingTestCase
         $this->assertSame('CUBE', $parcels[0]['box_code']);
     }
 
+    /**
+     * Parcels carry their own volume and girth, in the units requested.
+     *
+     * Not every module rates a parcel: Australia Post-style modules classify one
+     * against a maximum length, a maximum cubic volume, or a letter size band. Deriving
+     * those in each module invites each to get them subtly wrong, and girth in
+     * particular is easy to compute against the wrong pair of edges.
+     */
+    public function testParcelsReportVolumeAndGirthForModulesThatClassifyRatherThanRate(): void
+    {
+        $items = $this->units(1, $this->item(4, 4, 4, 1.0, 'thing'));
+        $plan = (new FirstFitDecreasingPacker())->pack(
+            $items,
+            [$this->box('B', 10, 8, 6)],
+            $this->context()
+        );
+
+        $parcel = QuoteAdapter::parcels($plan)[0];
+
+        $this->assertSame(10.0 * 8.0 * 6.0, $parcel['volume']);
+        $this->assertSame(10.0 + 2 * (6.0 + 8.0), $parcel['girth'], 'Longest edge plus twice the other two.');
+        $this->assertSame(Units::INCHES, $parcel['dim_units']);
+        $this->assertSame(Units::POUNDS, $parcel['weight_units']);
+    }
+
+    /**
+     * Volume and girth must be measured after conversion, not converted as if they were
+     * lengths - a cubic volume does not scale by 2.54.
+     */
+    public function testVolumeAndGirthAreExpressedInTheRequestedUnits(): void
+    {
+        $items = $this->units(1, $this->item(1, 1, 1, 1.0, 'thing'));
+        $plan = (new FirstFitDecreasingPacker())->pack(
+            $items,
+            [$this->box('B', 10, 10, 10)],
+            $this->context()
+        );
+
+        $metric = QuoteAdapter::parcels($plan, Units::CENTIMETERS, Units::KILOGRAMS)[0];
+
+        $this->assertEqualsWithDelta(25.4, $metric['length'], 0.01);
+        $this->assertEqualsWithDelta(25.4 ** 3, $metric['volume'], 1.0, 'Volume scales cubically, not linearly.');
+        $this->assertEqualsWithDelta(25.4 * 5, $metric['girth'], 0.1);
+        $this->assertSame(Units::CENTIMETERS, $metric['dim_units']);
+    }
+
     public function testParcelsConvertToTheUnitsACarrierWants(): void
     {
         $parcels = QuoteAdapter::parcels($this->twoParcelPlan(), Units::CENTIMETERS, Units::KILOGRAMS);
@@ -205,10 +251,10 @@ class QuoteAdapterTest extends PackingTestCase
     }
 
     /**
-     * The envelope bounds every parcel on every axis, so a module that rates it N times
+     * The bounding parcel covers every parcel on every axis, so a module that rates it N times
      * can over-quote a mixed plan but never under-quote one.
      */
-    public function testEnvelopeBoundsEveryParcelOnEveryAxis(): void
+    public function testBoundingParcelBoundsEveryParcelOnEveryAxis(): void
     {
         $items = [
             $this->item(9, 2, 2, 2.0, 'rod'),
@@ -216,47 +262,47 @@ class QuoteAdapterTest extends PackingTestCase
             $this->item(2, 2, 9, 1.0, 'post'),
         ];
         // Each item needs its own box, so the parcels differ in nothing but orientation
-        // and weight - which is exactly the case the envelope has to bound.
+        // and weight - which is exactly the case the bounding parcel has to cover.
         $plan = (new FirstFitDecreasingPacker())->pack(
             $items,
             [$this->box('SNUG', 9, 9, 9)],
             $this->context()
         );
 
-        $envelope = QuoteAdapter::envelope($plan);
+        $bounding = QuoteAdapter::boundingParcel($plan);
 
-        $this->assertNotNull($envelope);
+        $this->assertNotNull($bounding);
         foreach (QuoteAdapter::parcels($plan) as $parcel) {
-            $this->assertGreaterThanOrEqual($parcel['length'], $envelope['length']);
-            $this->assertGreaterThanOrEqual($parcel['width'], $envelope['width']);
-            $this->assertGreaterThanOrEqual($parcel['height'], $envelope['height']);
-            $this->assertGreaterThanOrEqual($parcel['weight'], $envelope['weight']);
+            $this->assertGreaterThanOrEqual($parcel['length'], $bounding['length']);
+            $this->assertGreaterThanOrEqual($parcel['width'], $bounding['width']);
+            $this->assertGreaterThanOrEqual($parcel['height'], $bounding['height']);
+            $this->assertGreaterThanOrEqual($parcel['weight'], $bounding['weight']);
         }
-        $this->assertSame($plan->quotablePackageCount(), $envelope['count']);
+        $this->assertSame($plan->quotablePackageCount(), $bounding['count']);
     }
 
-    public function testEnvelopeOfASingleParcelIsThatParcel(): void
+    public function testBoundingParcelOfASingleParcelIsThatParcel(): void
     {
         $items = $this->units(1, $this->item(6, 6, 6, 3.0, 'thing'));
         $plan = (new FirstFitDecreasingPacker())->pack($items, [$this->box('M', 10, 10, 10, tare: 0.5)], $this->context());
 
-        $envelope = QuoteAdapter::envelope($plan);
+        $bounding = QuoteAdapter::boundingParcel($plan);
         $parcel = QuoteAdapter::parcels($plan)[0];
 
-        $this->assertSame($parcel['length'], $envelope['length']);
-        $this->assertSame($parcel['weight'], $envelope['weight']);
-        $this->assertSame(1, $envelope['count']);
+        $this->assertSame($parcel['length'], $bounding['length']);
+        $this->assertSame($parcel['weight'], $bounding['weight']);
+        $this->assertSame(1, $bounding['count']);
     }
 
     /**
-     * A plan whose parcels have no usable size yields no envelope, so a module falls
+     * A plan whose parcels have no usable size yields no bounding parcel, so a module falls
      * back rather than asking a carrier to rate a zero-sized package.
      */
-    public function testEnvelopeIsNullWhenNoParcelHasAUsableSize(): void
+    public function testBoundingParcelIsNullWhenNoParcelHasAUsableSize(): void
     {
         $plan = new PackingPlan([], [], false, false, 'zc-ffd-v1', 'h');
 
-        $this->assertNull(QuoteAdapter::envelope($plan));
+        $this->assertNull(QuoteAdapter::boundingParcel($plan));
     }
 
     /**
@@ -271,7 +317,7 @@ class QuoteAdapterTest extends PackingTestCase
         $plan = QuoteAdapter::plan();
         QuoteAdapter::packageCount($plan, (int)$GLOBALS['shipping_num_boxes']);
         QuoteAdapter::parcels($plan);
-        QuoteAdapter::envelope($plan);
+        QuoteAdapter::boundingParcel($plan);
 
         $this->assertSame(1, $GLOBALS['shipping_num_boxes']);
     }
