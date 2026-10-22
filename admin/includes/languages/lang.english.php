@@ -143,6 +143,7 @@ $define = [
     'BOX_REPORTS_PRODUCTS_PURCHASED' => 'Products Purchased',
     'BOX_REPORTS_PRODUCTS_VIEWED' => 'Products Viewed',
     'BOX_REPORTS_SHIPPING_DIMENSIONS' => 'Missing Shipping Dimensions',
+    'BOX_MODULES_SHIPPING_BOXES' => 'Shipping Boxes',
     'BOX_TAXES_COUNTRIES' => 'Countries',
     'BOX_TAXES_GEO_ZONES' => 'Zones Definitions',
     'BOX_TAXES_TAX_CLASSES' => 'Tax Classes',

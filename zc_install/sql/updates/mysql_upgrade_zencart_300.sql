@@ -114,6 +114,13 @@ ALTER TABLE products ADD products_orientation_lock tinyint(1) NOT NULL default 0
 
 #PROGRESS_FEEDBACK:!TEXT=Updating configuration settings...
 
+# Modules menu entry for the shipping box catalog.
+DELETE FROM admin_pages WHERE page_key = 'shippingBoxes';
+INSERT INTO admin_pages (page_key, language_key, main_page, page_params, menu_key, display_on_menu, sort_order)
+VALUES ('shippingBoxes', 'BOX_MODULES_SHIPPING_BOXES', 'FILENAME_SHIPPING_BOXES', '', 'modules', 'Y', 5);
+DELETE FROM admin_pages_to_profiles WHERE page_key = 'shippingBoxes';
+INSERT INTO admin_pages_to_profiles (profile_id, page_key) VALUES (1, 'shippingBoxes');
+
 # Reports menu entry for the missing-dimensions report.
 DELETE FROM admin_pages WHERE page_key = 'reportShippingDimensions';
 INSERT INTO admin_pages (page_key, language_key, main_page, page_params, menu_key, display_on_menu, sort_order)
