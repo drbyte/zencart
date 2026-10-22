@@ -170,6 +170,30 @@ class ShippingBoxesPageTest extends zcInProcessFeatureTestCaseAdmin
             $page->content,
             'Only the store\'s own installed modules belong in the list.'
         );
+        $this->assertStringContainsString(
+            '<option value="" selected="selected">Any carrier</option>',
+            $page->content,
+            'A new box must default to Any carrier, not to whichever module happens to sort last.'
+        );
+    }
+
+    /**
+     * Admin's zen_draw_input_field() takes $required as its fourth argument where the
+     * catalog's takes $type, so a mistake there marks an optional field required and
+     * stamps it with the red asterisk. Sort order is optional.
+     */
+    public function testOptionalFieldsAreNotMarkedRequired(): void
+    {
+        $page = $this->visitAdminCommand('shipping_boxes&action=new')->assertOk();
+
+        foreach (['sort_order', 'max_payload_weight', 'interior_margin', 'exterior_length'] as $field) {
+            $this->assertSame(
+                1,
+                preg_match('/<input[^>]*name="' . $field . '"[^>]*>/', $page->content, $matches),
+                'Expected an input named ' . $field
+            );
+            $this->assertStringNotContainsString(' required', $matches[0], $field . ' is optional.');
+        }
     }
 
     /**

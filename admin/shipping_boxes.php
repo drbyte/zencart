@@ -122,106 +122,143 @@ $unit_label = static fn (string $units): string => zen_output_string_protected($
 
         <?php if ($action === 'new' || $action === 'edit') { ?>
           <?php echo zen_draw_form('box', FILENAME_SHIPPING_BOXES, 'action=' . ($action === 'edit' ? 'save&bID=' . $bID : 'insert'), 'post', 'class="form-horizontal"'); ?>
-          <table class="table">
-            <tbody>
-              <tr>
-                <td><?php echo ENTRY_BOX_CODE; ?></td>
-                <td><?php echo zen_draw_input_field('box_code', $form_values['box_code'] ?? '', 'maxlength="32"'); ?>
-                    <br><small><?php echo ENTRY_BOX_CODE_INFO; ?></small></td>
-              </tr>
-              <tr>
-                <td><?php echo ENTRY_BOX_TITLE; ?></td>
-                <td><?php echo zen_draw_input_field('box_title', $form_values['box_title'] ?? '', 'maxlength="64"'); ?></td>
-              </tr>
-              <tr>
-                <td><?php echo ENTRY_INTERIOR; ?></td>
-                <td>
+          <div class="form-group">
+              <?= zen_draw_label(ENTRY_BOX_CODE, 'box_code', 'class="col-sm-3 control-label"') ?>
+            <div class="col-sm-6">
+                <?= zen_draw_input_field('box_code', $form_values['box_code'] ?? '', 'maxlength="32" class="form-control" id="box_code"') ?>
+              <p class="help-block"><?= ENTRY_BOX_CODE_INFO ?></p>
+            </div>
+          </div>
+          <div class="form-group">
+              <?= zen_draw_label(ENTRY_BOX_TITLE, 'box_title', 'class="col-sm-3 control-label"') ?>
+            <div class="col-sm-6">
+                <?= zen_draw_input_field('box_title', $form_values['box_title'] ?? '', 'maxlength="64" class="form-control" id="box_title"') ?>
+            </div>
+          </div>
+            <?php
+            /**
+             * Length, width and height belong to one measurement, so the three inputs stay
+             * on one line inside a single form-group rather than becoming three rows.
+             */
+            foreach ([
+                'interior' => ['label' => ENTRY_INTERIOR, 'info' => ENTRY_INTERIOR_INFO],
+                'exterior' => ['label' => ENTRY_EXTERIOR, 'info' => ENTRY_EXTERIOR_INFO],
+            ] as $prefix => $axis_group) { ?>
+            <div class="form-group">
+                <?= zen_draw_label($axis_group['label'], $prefix . '_length', 'class="col-sm-3 control-label"') ?>
+              <div class="col-sm-6">
+                <div class="row">
                     <?php
-                      echo zen_draw_input_field('interior_length', $form_values['interior_length'] ?? '', 'size="8"') . ' &times; ';
-                      echo zen_draw_input_field('interior_width', $form_values['interior_width'] ?? '', 'size="8"') . ' &times; ';
-                      echo zen_draw_input_field('interior_height', $form_values['interior_height'] ?? '', 'size="8"');
-                    ?>
-                    <br><small><?php echo ENTRY_INTERIOR_INFO; ?></small>
-                </td>
-              </tr>
-              <tr>
-                <td><?php echo ENTRY_EXTERIOR; ?></td>
-                <td>
-                    <?php
-                      echo zen_draw_input_field('exterior_length', $form_values['exterior_length'] ?? '', 'size="8"') . ' &times; ';
-                      echo zen_draw_input_field('exterior_width', $form_values['exterior_width'] ?? '', 'size="8"') . ' &times; ';
-                      echo zen_draw_input_field('exterior_height', $form_values['exterior_height'] ?? '', 'size="8"');
-                    ?>
-                    <br><small><?php echo ENTRY_EXTERIOR_INFO; ?></small>
-                </td>
-              </tr>
-              <tr>
-                <td><?php echo ENTRY_DIM_UNITS; ?></td>
-                <td><?php echo zen_draw_pull_down_menu('dim_units', [
-                        ['id' => Units::INCHES, 'text' => Units::INCHES],
-                        ['id' => Units::CENTIMETERS, 'text' => Units::CENTIMETERS],
-                    ], $form_values['dim_units'] ?? Units::INCHES); ?></td>
-              </tr>
-              <tr>
-                <td><?php echo ENTRY_INTERIOR_MARGIN; ?></td>
-                <td><?php echo zen_draw_input_field('interior_margin', $form_values['interior_margin'] ?? '', 'size="8"'); ?>
-                    <br><small><?php echo ENTRY_INTERIOR_MARGIN_INFO; ?></small></td>
-              </tr>
-              <tr>
-                <td><?php echo ENTRY_TARE_WEIGHT; ?></td>
-                <td><?php echo zen_draw_input_field('tare_weight', $form_values['tare_weight'] ?? '0', 'size="8"'); ?>
-                    <br><small><?php echo ENTRY_TARE_WEIGHT_INFO; ?></small></td>
-              </tr>
-              <tr>
-                <td><?php echo ENTRY_MAX_PAYLOAD; ?></td>
-                <td><?php echo zen_draw_input_field('max_payload_weight', $form_values['max_payload_weight'] ?? '', 'size="8"'); ?>
-                    <br><small><?php echo ENTRY_MAX_PAYLOAD_INFO; ?></small></td>
-              </tr>
-              <tr>
-                <td><?php echo ENTRY_WEIGHT_UNITS; ?></td>
-                <td><?php echo zen_draw_pull_down_menu('weight_units', [
-                        ['id' => Units::POUNDS, 'text' => Units::POUNDS],
-                        ['id' => Units::KILOGRAMS, 'text' => Units::KILOGRAMS],
-                    ], $form_values['weight_units'] ?? Units::POUNDS); ?></td>
-              </tr>
-              <tr>
-                <td><?php echo ENTRY_DESTINATION_SCOPE; ?></td>
-                <td><?php echo zen_draw_pull_down_menu('destination_scope', [
-                        ['id' => BoxType::SCOPE_BOTH, 'text' => TEXT_SCOPE_BOTH],
-                        ['id' => BoxType::SCOPE_DOMESTIC, 'text' => TEXT_SCOPE_DOMESTIC],
-                        ['id' => BoxType::SCOPE_INTERNATIONAL, 'text' => TEXT_SCOPE_INTERNATIONAL],
-                    ], $form_values['destination_scope'] ?? BoxType::SCOPE_BOTH); ?></td>
-              </tr>
-              <tr>
-                <td><?php echo ENTRY_CARRIER_CODE; ?></td>
-                <td><?php
                     /**
-                     * A dropdown of the store's own installed shipping modules, because the
-                     * value has to match the code a module reports and a typo here fails
-                     * silently: the box is simply never offered.
+                     * Three columns rather than inline fields: below the Bootstrap small
+                     * breakpoint an inline row stacks, which left the separators dangling
+                     * on lines of their own. Each axis is labeled by its placeholder, so
+                     * the fields stay self-describing once they are narrow.
                      */
-                    $carrier_options = [['id' => '', 'text' => TEXT_CARRIER_ANY]];
-                    foreach (BoxForm::carrierCodes(zen_config('MODULE_SHIPPING_INSTALLED', ''), $form_values['carrier_code'] ?? null) as $carrier_code) {
-                        $carrier_options[] = ['id' => $carrier_code, 'text' => $carrier_code];
-                    }
-                    echo zen_draw_pull_down_menu('carrier_code', $carrier_options, $form_values['carrier_code'] ?? ''); ?>
-                    <br><small><?php echo ENTRY_CARRIER_CODE_INFO; ?></small></td>
-              </tr>
-              <tr>
-                <td><?php echo ENTRY_SORT_ORDER; ?></td>
-                <td><?php echo zen_draw_input_field('sort_order', $form_values['sort_order'] ?? '0', 'size="4"'); ?>
-                    <br><small><?php echo ENTRY_SORT_ORDER_INFO; ?></small></td>
-              </tr>
-              <tr>
-                <td><?php echo ENTRY_ENABLED; ?></td>
-                <td><?php echo zen_draw_checkbox_field('is_enabled', 'on', !empty($form_values['is_enabled']) || $action === 'new'); ?></td>
-              </tr>
-            </tbody>
-          </table>
-          <p>
-            <button type="submit" class="btn btn-primary"><?php echo IMAGE_SAVE; ?></button>
-            <a class="btn btn-default" href="<?php echo zen_href_link(FILENAME_SHIPPING_BOXES); ?>"><?php echo IMAGE_CANCEL; ?></a>
-          </p>
+                    foreach (['length' => PLACEHOLDER_LENGTH, 'width' => PLACEHOLDER_WIDTH, 'height' => PLACEHOLDER_HEIGHT] as $axis => $placeholder) {
+                        $field = $prefix . '_' . $axis;
+                        ?>
+                      <div class="col-xs-4">
+                          <?= zen_draw_input_field($field, $form_values[$field] ?? '', 'class="form-control" id="' . $field . '" placeholder="' . $placeholder . '"') ?>
+                      </div>
+                    <?php } ?>
+                </div>
+                <p class="help-block"><?= $axis_group['info'] ?></p>
+              </div>
+            </div>
+            <?php } ?>
+          <div class="form-group">
+              <?= zen_draw_label(ENTRY_DIM_UNITS, 'dim_units', 'class="col-sm-3 control-label"') ?>
+            <div class="col-sm-3">
+                <?= zen_draw_pull_down_menu('dim_units', [
+                    ['id' => Units::INCHES, 'text' => Units::INCHES],
+                    ['id' => Units::CENTIMETERS, 'text' => Units::CENTIMETERS],
+                ], $form_values['dim_units'] ?? Units::INCHES, 'class="form-control" id="dim_units"') ?>
+            </div>
+          </div>
+          <div class="form-group">
+              <?= zen_draw_label(ENTRY_INTERIOR_MARGIN, 'interior_margin', 'class="col-sm-3 control-label"') ?>
+            <div class="col-sm-6">
+                <?= zen_draw_input_field('interior_margin', $form_values['interior_margin'] ?? '', 'size="8" class="form-control" id="interior_margin"') ?>
+              <p class="help-block"><?= ENTRY_INTERIOR_MARGIN_INFO ?></p>
+            </div>
+          </div>
+          <div class="form-group">
+              <?= zen_draw_label(ENTRY_TARE_WEIGHT, 'tare_weight', 'class="col-sm-3 control-label"') ?>
+            <div class="col-sm-6">
+                <?= zen_draw_input_field('tare_weight', $form_values['tare_weight'] ?? '0', 'size="8" class="form-control" id="tare_weight"') ?>
+              <p class="help-block"><?= ENTRY_TARE_WEIGHT_INFO ?></p>
+            </div>
+          </div>
+          <div class="form-group">
+              <?= zen_draw_label(ENTRY_MAX_PAYLOAD, 'max_payload_weight', 'class="col-sm-3 control-label"') ?>
+            <div class="col-sm-6">
+                <?= zen_draw_input_field('max_payload_weight', $form_values['max_payload_weight'] ?? '', 'size="8" class="form-control" id="max_payload_weight"') ?>
+              <p class="help-block"><?= ENTRY_MAX_PAYLOAD_INFO ?></p>
+            </div>
+          </div>
+          <div class="form-group">
+              <?= zen_draw_label(ENTRY_WEIGHT_UNITS, 'weight_units', 'class="col-sm-3 control-label"') ?>
+            <div class="col-sm-3">
+                <?= zen_draw_pull_down_menu('weight_units', [
+                    ['id' => Units::POUNDS, 'text' => Units::POUNDS],
+                    ['id' => Units::KILOGRAMS, 'text' => Units::KILOGRAMS],
+                ], $form_values['weight_units'] ?? Units::POUNDS, 'class="form-control" id="weight_units"') ?>
+            </div>
+          </div>
+          <div class="form-group">
+              <?= zen_draw_label(ENTRY_DESTINATION_SCOPE, 'destination_scope', 'class="col-sm-3 control-label"') ?>
+            <div class="col-sm-6">
+                <?= zen_draw_pull_down_menu('destination_scope', [
+                    ['id' => BoxType::SCOPE_BOTH, 'text' => TEXT_SCOPE_BOTH],
+                    ['id' => BoxType::SCOPE_DOMESTIC, 'text' => TEXT_SCOPE_DOMESTIC],
+                    ['id' => BoxType::SCOPE_INTERNATIONAL, 'text' => TEXT_SCOPE_INTERNATIONAL],
+                ], $form_values['destination_scope'] ?? BoxType::SCOPE_BOTH, 'class="form-control" id="destination_scope"') ?>
+            </div>
+          </div>
+          <div class="form-group">
+              <?= zen_draw_label(ENTRY_CARRIER_CODE, 'carrier_code', 'class="col-sm-3 control-label"') ?>
+            <div class="col-sm-6">
+                <?php
+                /**
+                 * A dropdown of the store's own installed shipping modules, because the
+                 * value has to match the code a module reports and a typo here fails
+                 * silently: the box is simply never offered.
+                 */
+                $carrier_options = [['id' => '', 'text' => TEXT_CARRIER_ANY]];
+                foreach (BoxForm::carrierCodes(zen_config('MODULE_SHIPPING_INSTALLED', ''), $form_values['carrier_code'] ?? null) as $installed_carrier) {
+                    $carrier_options[] = ['id' => $installed_carrier, 'text' => $installed_carrier];
+                }
+                echo zen_draw_pull_down_menu('carrier_code', $carrier_options, $form_values['carrier_code'] ?? '', 'class="form-control" id="carrier_code"');
+                ?>
+              <p class="help-block"><?= ENTRY_CARRIER_CODE_INFO ?></p>
+            </div>
+          </div>
+          <div class="form-group">
+              <?= zen_draw_label(ENTRY_SORT_ORDER, 'sort_order', 'class="col-sm-3 control-label"') ?>
+            <div class="col-sm-6">
+              <div class="form-inline">
+                  <?= zen_draw_input_field('sort_order', $form_values['sort_order'] ?? '0', 'size="4" class="form-control" id="sort_order"', false, 'number') ?>
+              </div>
+              <p class="help-block"><?= ENTRY_SORT_ORDER_INFO ?></p>
+            </div>
+          </div>
+          <div class="form-group">
+            <div class="col-sm-9 col-sm-offset-3">
+              <div class="checkbox">
+                <label>
+                    <?= zen_draw_checkbox_field('is_enabled', 'on', !empty($form_values['is_enabled']) || $action === 'new', 'id="is_enabled"') ?>
+                    <?= ENTRY_ENABLED ?>
+                </label>
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <div class="col-sm-9 col-sm-offset-3">
+              <button type="submit" class="btn btn-primary"><?php echo IMAGE_SAVE; ?></button>
+              <a class="btn btn-default" href="<?php echo zen_href_link(FILENAME_SHIPPING_BOXES); ?>"><?php echo IMAGE_CANCEL; ?></a>
+            </div>
+          </div>
           <?php echo '</form>' ?>
         <?php } else { ?>
           <p><a class="btn btn-primary" href="<?php echo zen_href_link(FILENAME_SHIPPING_BOXES, 'action=new'); ?>"><?php echo IMAGE_NEW_BOX; ?></a></p>
